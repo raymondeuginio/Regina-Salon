@@ -11,22 +11,18 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('service_addons', function (Blueprint $table) {
+        Schema::create('service_categories', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('service_id')->constrained('services')->onDelete('cascade');
             $table->string('name');
-            $table->decimal('price', 12, 2)->default(0);
-            $table->integer('duration')->default(0); // tambahan waktu (menit)
             $table->timestamps();
         });
     }
-
 
     /**
      * Reverse the migrations.
      */
     public function down(): void
     {
-        Schema::dropIfExists('service_addons');
+        Schema::dropIfExists('service_categories');
     }
 };

@@ -15,12 +15,11 @@ return new class extends Migration
             $table->id();
             $table->foreignId('booking_id')->constrained('bookings')->onDelete('cascade');
             $table->foreignId('service_id')->constrained('services')->onDelete('cascade');
-            $table->decimal('final_price', 12, 2);
-            $table->integer('final_duration');
+            $table->integer('duration');
+            $table->decimal('price', 12, 2);
             $table->timestamps();
         });
     }
-
 
     /**
      * Reverse the migrations.

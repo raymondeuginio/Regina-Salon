@@ -14,14 +14,14 @@ return new class extends Migration
         Schema::create('payments', function (Blueprint $table) {
             $table->id();
             $table->foreignId('booking_id')->constrained('bookings')->onDelete('cascade');
-            $table->enum('payment_method', ['cash', 'non-cash'])->nullable();
-            $table->enum('payment_status', ['unpaid', 'paid'])->default('unpaid');
+            $table->enum('method', ['cash', 'non-cash'])->nullable();
             $table->decimal('amount_paid', 12, 2)->nullable();
-            $table->decimal('change_returned', 12, 2)->nullable();
+            $table->decimal('total_amount', 12, 2);
+            $table->decimal('change_amount', 12, 2)->nullable();
+            $table->boolean('is_paid')->default(false);
             $table->timestamps();
         });
     }
-
 
     /**
      * Reverse the migrations.

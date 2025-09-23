@@ -11,22 +11,21 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('staff_weekly_schedule', function (Blueprint $table) {
+        Schema::create('booking_item_addons', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('staff_id')->constrained('staff')->onDelete('cascade');
-            $table->string('day_of_week'); // Monday, Tuesday, ...
-            $table->time('start_time');
-            $table->time('end_time');
+            $table->foreignId('booking_item_id')->constrained('booking_items')->onDelete('cascade');
+            $table->foreignId('addon_id')->constrained('service_addons')->onDelete('cascade');
+            $table->integer('duration');
+            $table->decimal('price', 12, 2);
             $table->timestamps();
         });
     }
-
 
     /**
      * Reverse the migrations.
      */
     public function down(): void
     {
-        Schema::dropIfExists('staff_weekly_schedule');
+        Schema::dropIfExists('booking_item_addons');
     }
 };

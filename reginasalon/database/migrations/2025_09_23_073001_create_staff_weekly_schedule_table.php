@@ -11,19 +11,21 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('service_categories', function (Blueprint $table) {
+        Schema::create('staff_weekly_schedule', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
+            $table->foreignId('staff_id')->constrained('staff')->onDelete('cascade');
+            $table->tinyInteger('day_of_week'); // 0=Sunday, 6=Saturday
+            $table->time('start_time');
+            $table->time('end_time');
             $table->timestamps();
         });
     }
-
 
     /**
      * Reverse the migrations.
      */
     public function down(): void
     {
-        Schema::dropIfExists('service_categories');
+        Schema::dropIfExists('staff_weekly_schedule');
     }
 };

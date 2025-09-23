@@ -14,12 +14,13 @@ return new class extends Migration
         Schema::create('staff_exceptions', function (Blueprint $table) {
             $table->id();
             $table->foreignId('staff_id')->constrained('staff')->onDelete('cascade');
-            $table->date('date'); // hari libur
-            $table->boolean('is_available')->default(false); // false = libur, true = available override
+            $table->date('date');
+            $table->boolean('is_available')->default(true);
+            $table->time('start_time')->nullable();
+            $table->time('end_time')->nullable();
             $table->timestamps();
         });
     }
-
 
     /**
      * Reverse the migrations.

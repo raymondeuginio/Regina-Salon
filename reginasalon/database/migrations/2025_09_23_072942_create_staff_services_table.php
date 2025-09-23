@@ -11,22 +11,19 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('booking_item_addons', function (Blueprint $table) {
+        Schema::create('staff_services', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('booking_item_id')->constrained('booking_items')->onDelete('cascade');
-            $table->foreignId('addon_id')->constrained('service_addons')->onDelete('cascade');
-            $table->decimal('final_price', 12, 2);
-            $table->integer('final_duration');
+            $table->foreignId('staff_id')->constrained('staff')->onDelete('cascade');
+            $table->foreignId('service_id')->constrained('services')->onDelete('cascade');
             $table->timestamps();
         });
     }
-
 
     /**
      * Reverse the migrations.
      */
     public function down(): void
     {
-        Schema::dropIfExists('booking_item_addons');
+        Schema::dropIfExists('staff_services');
     }
 };
