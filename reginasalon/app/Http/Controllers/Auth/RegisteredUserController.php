@@ -4,16 +4,20 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use Illuminate\Auth\Events\Registered;
+use App\Services\EmailOtpService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Session;
 use Illuminate\Validation\Rules;
 use Illuminate\View\View;
 
 class RegisteredUserController extends Controller
 {
+    public function __construct(private readonly EmailOtpService $emailOtpService)
+    {
+    }
+
     /**
      * Display the registration view.
      */
@@ -41,10 +45,10 @@ class RegisteredUserController extends Controller
             'password' => Hash::make($request->password),
         ]);
 
-        event(new Registered($user));
+        $this->emailOtpService->generate($user);
 
-        Auth::login($user);
+        Session::put('pending_verification_user_id', $user->id);
 
-        return redirect(route('dashboard', absolute: false));
+        return redirect()->route('verification.otp.show')->with('status', 'otp-sent');
     }
 }

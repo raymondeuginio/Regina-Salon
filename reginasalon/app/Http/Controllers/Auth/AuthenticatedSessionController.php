@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Services\EmailOtpService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -11,6 +12,10 @@ use Illuminate\View\View;
 
 class AuthenticatedSessionController extends Controller
 {
+    public function __construct(private readonly EmailOtpService $emailOtpService)
+    {
+    }
+
     /**
      * Display the login view.
      */
@@ -27,6 +32,22 @@ class AuthenticatedSessionController extends Controller
         $request->authenticate();
 
         $request->session()->regenerate();
+
+        if (! $request->user()->hasVerifiedEmail()) {
+            $user = $request->user();
+
+            $this->emailOtpService->resend($user);
+
+            $pendingUserId = $user->id;
+
+            Auth::logout();
+
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+            $request->session()->put('pending_verification_user_id', $pendingUserId);
+
+            return redirect()->route('verification.otp.show')->with('status', 'otp-resent');
+        }
 
         return redirect()->intended(route('dashboard', absolute: false));
     }
