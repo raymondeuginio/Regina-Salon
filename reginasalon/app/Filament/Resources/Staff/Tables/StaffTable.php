@@ -21,6 +21,15 @@ class StaffTable
                 TextColumn::make('name'),
                 TextColumn::make('email'),
                 TextColumn::make('phone'),
+                TextColumn::make('services_list')
+                    ->label('Services')
+                    ->getStateUsing(
+                        fn($record) =>
+                        $record->services->unique('id')->pluck('name')->implode(', ')
+                    )
+                    ->limit(25)
+                    ->tooltip(fn($record) => $record->services->pluck('name')->join(', '))
+
 
 
 

@@ -19,9 +19,10 @@ class StaffForm
                 TextInput::make('name')->required(),
                 TextInput::make("email")->required()->unique(),
                 TextInput::make('phone')->required()->unique(),
-                CheckboxList::make('service')
+                CheckboxList::make('services')
                     ->label('Services')
                     ->required()
+                    ->relationship('services', 'name')
                     ->helperText('Pilih service yang bisa dilakukan staff ini.')
                     ->columns(3)
                     ->options(fn() => Service::query()

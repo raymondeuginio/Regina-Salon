@@ -15,6 +15,12 @@ class StaffInfolist
                 TextEntry::make('name'),
                 TextEntry::make('email'),
                 TextEntry::make('phone'),
+                TextEntry::make('services_list')
+                    ->label('Services')
+                    ->getStateUsing(
+                        fn($record) =>
+                        $record->services->unique('id')->pluck('name')->join(', ')
+                    )
 
             ]);
     }
