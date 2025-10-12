@@ -18,6 +18,15 @@ class DatabaseSeeder extends Seeder
             'name' => 'Regina Admin',
             'email' => 'regina@salon.com',
             'password' => bcrypt('regina123'),
+            'role' => 'owner'
+        ]);
+
+
+        User::factory()->create([
+            'name' => 'Algi',
+            'email' => 'algi@salon.com',
+            'password' => bcrypt('algi123'),
+            'role' => 'admin'
         ]);
         $this->call([
             StoreSeeder::class,

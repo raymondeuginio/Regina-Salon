@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Filament\Resources\Bookings\Schemas\BookingForm;
+use App\Observers\BookingObserver;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider

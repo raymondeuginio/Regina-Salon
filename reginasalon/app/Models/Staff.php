@@ -16,6 +16,7 @@ class Staff extends Model
         'name',
         'email',
         'phone',
+        'image'
     ];
 
 

@@ -28,6 +28,10 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
+            // ->brandName('Regina Salon')
+            ->brandLogo(asset('images/logo-regina-1x1.png'))
+            ->brandLogoHeight('5rem')
+            ->favicon(asset('images/regina-favicon-resized.ico'))
             ->login()
             ->colors([
                 'primary' => 'amber',
@@ -56,7 +60,6 @@ class AdminPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
             ])
-            ->databaseNotifications()
-            ->databaseNotificationsPolling('15s');
+            ->databaseNotifications();
     }
 }

@@ -6,9 +6,11 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
+use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Filament\Tables\Columns\TagsColumn;
+use League\Flysystem\Visibility;
 
 class StaffTable
 {
@@ -18,6 +20,10 @@ class StaffTable
             ->columns([
                 TextColumn::make('id'),
                 TextColumn::make('store.name'),
+                ImageColumn::make('image')
+                    ->circular()
+                    ->disk('public')
+                    ->visibility('public'),
                 TextColumn::make('name'),
                 TextColumn::make('email'),
                 TextColumn::make('phone'),
