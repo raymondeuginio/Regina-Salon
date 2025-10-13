@@ -1,11 +1,14 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ServiceController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+Route::redirect('/', '/home');
+
+Route::view('/home', 'home.index')->name('home');
+
+Route::get('/service', [ServiceController::class, 'index'])->name('services.index');
 
 Route::get('/dashboard', function () {
     return view('dashboard');
