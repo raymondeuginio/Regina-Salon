@@ -38,11 +38,6 @@ class StaffForm
                             ->unique()
                             ->placeholder('Phone Number')
                             ->helperText('Format: 0878xxxxxxxx'),
-                        Textarea::make('description')
-                            ->required()
-                            ->rows(3)
-                            ->placeholder('Write about yourself (max 300 char)')
-                            ->maxLength(300),
 
                     ]),
                 Section::make()
