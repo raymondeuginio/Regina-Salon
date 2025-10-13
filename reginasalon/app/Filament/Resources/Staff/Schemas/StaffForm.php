@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Staff\Schemas;
 
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Select;
 use Filament\Schemas\Components\Section;
@@ -10,6 +11,7 @@ use App\Models\Service;
 use App\Models\ServiceCategory;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Textarea;
 
 class StaffForm
 {
@@ -20,13 +22,27 @@ class StaffForm
             ->components([
                 Section::make()
                     ->schema([
-                        Select::make('store_id')->relationship('store', 'name')->label('Store')->required(),
-                        TextInput::make('name')->required(),
-                        TextInput::make("email")->required()->unique(),
+                        Select::make('store_id')
+                            ->relationship('store', 'name')
+                            ->label('Store')
+                            ->required(),
+                        TextInput::make('name')
+                            ->required()
+                            ->placeholder('Name'),
+                        TextInput::make("email")
+                            ->required()
+                            ->unique()
+                            ->placeholder('Email'),
                         TextInput::make('phone')
                             ->required()
                             ->unique()
-                            ->helperText('Format: 0878xxxxxxxx')
+                            ->placeholder('Phone Number')
+                            ->helperText('Format: 0878xxxxxxxx'),
+                        Textarea::make('description')
+                            ->required()
+                            ->rows(3)
+                            ->placeholder('Write about yourself (max 300 char)')
+                            ->maxLength(300),
 
                     ]),
                 Section::make()
@@ -50,7 +66,7 @@ class StaffForm
                     ->label('Services')
                     ->required()
                     ->relationship('services', 'name')
-                    ->helperText('Pilih service yang bisa dilakukan staff ini.')
+                    ->helperText('Choose your specialty')
                     ->columns(3)
                     ->options(fn() => Service::query()
                         ->orderBy('name')

@@ -25,6 +25,7 @@ class StaffTable
                     ->disk('public')
                     ->visibility('public'),
                 TextColumn::make('name'),
+                TextColumn::make('description'),
                 TextColumn::make('email'),
                 TextColumn::make('phone'),
                 TextColumn::make('services_list')
