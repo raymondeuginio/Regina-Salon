@@ -13,6 +13,7 @@ class Booking extends Model
     protected $fillable = [
         'user_id',
         'store_id',
+        'service_id',
         'booking_date',
         'booking_time',
         'staff_id',
@@ -21,7 +22,7 @@ class Booking extends Model
 
     protected $casts = [
         'booking_date' => 'date',
-        'booking_time' => 'datetime:H:i'
+        'booking_time' => 'datetime:H:i:s'
     ];
 
     /**
@@ -37,6 +38,11 @@ class Booking extends Model
     public function store()
     {
         return $this->belongsTo(Store::class);
+    }
+
+    public function service()
+    {
+        return $this->belongsTo(Service::class);
     }
 
     // Booking bisa punya 1 staff (nullable)
