@@ -19,7 +19,8 @@
         </header>
 
         <div class="mt-12 grid gap-10 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-            <form id="booking-form" class="space-y-10" autocomplete="off">
+            <form id="booking-form" class="space-y-10" action="{{ route('booking.store') }}" method="POST" autocomplete="off">
+                @csrf
                 <input type="hidden" name="store_id" value="{{ $store['id'] }}">
 
                 <section class="space-y-6 rounded-3xl border border-rose-100 bg-white p-8 shadow-sm">
@@ -104,8 +105,8 @@
                             <input type="email" name="customer_email" class="mt-1 w-full rounded-2xl border border-rose-100 px-4 py-3 text-sm focus:border-rose-400 focus:outline-none focus:ring-1 focus:ring-rose-200" value="{{ $customer['email'] }}" placeholder="Email aktif">
                         </label>
                         <label class="text-sm font-medium text-gray-700 sm:col-span-2">
-                            Nomor HP
-                            <input type="tel" name="customer_phone" class="mt-1 w-full rounded-2xl border border-rose-100 px-4 py-3 text-sm focus:border-rose-400 focus:outline-none focus:ring-1 focus:ring-rose-200" value="{{ $customer['phone'] }}" placeholder="08xxxxxxxxxx">
+                            Nomor WhatsApp
+                            <input type="tel" name="customer_phone" required class="mt-1 w-full rounded-2xl border border-rose-100 px-4 py-3 text-sm focus:border-rose-400 focus:outline-none focus:ring-1 focus:ring-rose-200" value="{{ $customer['phone'] }}" placeholder="08xxxxxxxxxx">
                         </label>
                         <label class="text-sm font-medium text-gray-700 sm:col-span-2">
                             Catatan Tambahan
@@ -133,8 +134,10 @@
             <aside class="space-y-6 rounded-3xl border border-rose-100 bg-white p-8 shadow-sm" data-booking-summary>
                 <div class="hidden rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700" data-confirmation-message>
                     <p class="font-semibold">Booking berhasil dibuat!</p>
-                    <p class="mt-1 text-xs">Kami telah mengirimkan ringkasan ke email Anda. Tim kami juga akan menghubungi melalui WhatsApp untuk pengingat jadwal.</p>
+                    <p class="mt-1 text-xs">Kami telah mengirimkan ringkasan ke email Anda. Nantikan pengingat jadwal dan detail booking melalui email.</p>
                 </div>
+
+                <div class="hidden rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-600" data-error-message></div>
 
                 <div>
                     <p class="text-xs font-semibold uppercase tracking-[0.3em] text-rose-400">Ringkasan Booking</p>
@@ -197,6 +200,9 @@
                 const today = new Date();
                 return new Date(today.getFullYear(), today.getMonth(), 1);
             })(),
+            customerPhone: (bookingData.customer.phone || '').trim(),
+            isSubmitting: false,
+            bookingConfirmed: false,
         };
 
         const elements = {
@@ -216,8 +222,13 @@
             paymentInputs: document.querySelectorAll('input[name="payment_method"]'),
             confirmButton: document.querySelector('[data-confirm-button]'),
             confirmationMessage: document.querySelector('[data-confirmation-message]'),
+            errorMessage: document.querySelector('[data-error-message]'),
+            phoneInput: document.querySelector('input[name="customer_phone"]'),
             form: document.getElementById('booking-form'),
         };
+
+        state.customerPhone = (elements.phoneInput?.value || '').trim();
+        state.paymentMethod = Array.from(elements.paymentInputs).find((input) => input.checked)?.value || null;
 
         const formatCurrency = (value) => new Intl.NumberFormat('id-ID', {
             style: 'currency',
@@ -349,25 +360,24 @@
             });
         };
 
-        const renderStaffCard = (staff) => {
-            if (!staff) {
-                return '';
-            }
+            const renderStaffCard = (staff) => {
+                if (!staff) {
+                    return '';
+                }
 
-            const specialisations = staff.specialisations.length ? staff.specialisations.join(' • ') : 'Semua layanan umum';
+                const specialisations = staff.specialisations.length ? staff.specialisations.join(' • ') : 'Semua layanan umum';
 
-            return `
+                return `
                     <div class="mt-4 flex items-start gap-4 rounded-2xl border border-rose-100 bg-white px-4 py-4">
                         <img src="${staff.photo}" alt="${staff.name}" class="h-16 w-16 rounded-full object-cover" loading="lazy">
                         <div class="space-y-1 text-sm">
                             <p class="font-semibold text-gray-900">${staff.name}</p>
-                            <p class="text-xs text-rose-500">Rating ${staff.rating}</p>
                             <p class="text-xs text-gray-500">Spesialisasi: ${specialisations}</p>
                             <p class="text-xs text-gray-500">${staff.bio}</p>
                         </div>
                     </div>
                 `;
-        };
+            };
 
         const renderStaffSelectors = () => {
             ensureAssignments();
@@ -695,12 +705,30 @@
             const assignments = getAssignments();
             const hasAllStaff = state.services.length && Array.from(assignments.keys()).length === state.services.length && Array.from(assignments.values()).every(Boolean);
 
-            const isValid = hasAllStaff &&
+            if (!elements.confirmButton) {
+                return;
+            }
+
+            const phoneFilled = Boolean(state.customerPhone && state.customerPhone.trim());
+            const readyToSubmit = hasAllStaff &&
                 state.selectedDate &&
                 state.selectedTime !== null &&
-                state.paymentMethod;
+                state.paymentMethod &&
+                phoneFilled;
 
-            elements.confirmButton.disabled = !isValid;
+            let shouldDisable = !readyToSubmit;
+
+            if (state.isSubmitting) {
+                elements.confirmButton.textContent = 'Memproses...';
+                shouldDisable = true;
+            } else if (state.bookingConfirmed) {
+                elements.confirmButton.textContent = 'Booking Terkonfirmasi';
+                shouldDisable = true;
+            } else {
+                elements.confirmButton.textContent = 'Konfirmasi Booking';
+            }
+
+            elements.confirmButton.disabled = shouldDisable;
         };
 
         const updateUI = () => {
@@ -719,18 +747,112 @@
             });
         });
 
+        if (elements.phoneInput) {
+            elements.phoneInput.addEventListener('input', () => {
+                state.customerPhone = elements.phoneInput.value.trim();
+                if (elements.errorMessage && !elements.errorMessage.classList.contains('hidden')) {
+                    elements.errorMessage.classList.add('hidden');
+                    elements.errorMessage.textContent = '';
+                }
+                updateSummary();
+            });
+        }
+
         elements.calendarPrev.addEventListener('click', goToPrevMonth);
         elements.calendarNext.addEventListener('click', goToNextMonth);
 
-        elements.form.addEventListener('submit', (event) => {
+        const buildFormData = () => {
+            const formData = new FormData(elements.form);
+
+            formData.delete('services[]');
+
+            state.services.forEach((service) => {
+                formData.append('services[]', service.id);
+                const staffId = state.staffAssignments.get(String(service.id));
+                if (staffId) {
+                    formData.append(`assignments[${service.id}]`, staffId);
+                }
+            });
+
+            if (state.selectedDate) {
+                formData.set('booking_date', state.selectedDate);
+            }
+
+            if (state.selectedTime !== null) {
+                formData.set('booking_time', timeFromMinutes(state.selectedTime));
+            }
+
+            if (state.paymentMethod) {
+                formData.set('payment_method', state.paymentMethod);
+            }
+
+            return formData;
+        };
+
+        elements.form.addEventListener('submit', async (event) => {
             event.preventDefault();
-            if (elements.confirmButton.disabled) {
+
+            if (state.isSubmitting || state.bookingConfirmed || elements.confirmButton.disabled) {
                 return;
             }
-            elements.confirmationMessage.classList.remove('hidden');
-            elements.confirmationMessage.classList.add('animate-pulse');
-            elements.confirmButton.disabled = true;
-            elements.confirmButton.textContent = 'Booking Terkonfirmasi';
+
+            if (elements.errorMessage) {
+                elements.errorMessage.classList.add('hidden');
+                elements.errorMessage.textContent = '';
+            }
+
+            state.isSubmitting = true;
+            updateSummary();
+
+            const csrfToken = elements.form.querySelector('input[name="_token"]')?.value || '';
+
+            try {
+                const response = await fetch(elements.form.action, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                    },
+                    body: buildFormData(),
+                });
+
+                if (!response.ok) {
+                    const data = await response.json().catch(() => null);
+                    let errorMessage = 'Terjadi kesalahan. Silakan coba lagi.';
+
+                    if (data?.errors) {
+                        const firstError = Object.values(data.errors).flat().find(Boolean);
+                        if (firstError) {
+                            errorMessage = firstError;
+                        }
+                    } else if (data?.message) {
+                        errorMessage = data.message;
+                    }
+
+                    if (elements.errorMessage) {
+                        elements.errorMessage.textContent = errorMessage;
+                        elements.errorMessage.classList.remove('hidden');
+                    }
+
+                    return;
+                }
+
+                await response.json().catch(() => ({}));
+
+                state.bookingConfirmed = true;
+
+                if (elements.confirmationMessage) {
+                    elements.confirmationMessage.classList.remove('hidden');
+                }
+            } catch (error) {
+                if (elements.errorMessage) {
+                    elements.errorMessage.textContent = 'Tidak dapat terhubung ke server. Silakan coba lagi.';
+                    elements.errorMessage.classList.remove('hidden');
+                }
+            } finally {
+                state.isSubmitting = false;
+                updateSummary();
+            }
         });
 
         updateUI();

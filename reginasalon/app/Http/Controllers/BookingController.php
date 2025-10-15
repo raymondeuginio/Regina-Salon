@@ -2,12 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Booking;
+use App\Models\BookingItem;
 use App\Models\Service;
 use App\Models\Staff;
 use App\Models\Store;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use App\Notifications\BookingPendingNotification;
 use Illuminate\View\View;
 
 class BookingController extends Controller
@@ -101,7 +109,6 @@ class BookingController extends Controller
                 'id' => $staff->id,
                 'name' => $staff->name,
                 'photo' => $staff->image ?: 'https://i.pravatar.cc/150?u=' . $staff->id,
-                'rating' => number_format(4.2 + ((int) $staff->id % 6) / 10, 1),
                 'bio' => 'Stylist profesional Regina Salon dengan pengalaman lebih dari 5 tahun dalam perawatan rambut dan kecantikan.',
                 'specialisations' => array_slice($specialisations, 0, 3),
                 'service_ids' => $services->pluck('id')->values()->all(),
@@ -168,5 +175,234 @@ class BookingController extends Controller
             'staff' => $staffPayload,
             'customer' => $customer,
         ]);
+    }
+
+    /**
+     * Store a new booking and lock the selected staff schedule.
+     */
+    public function store(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'store_id' => ['required', 'integer', 'exists:stores,id'],
+            'booking_date' => ['required', 'date'],
+            'booking_time' => ['required', 'date_format:H:i'],
+            'services' => ['required', 'array', 'min:1'],
+            'services.*' => ['integer'],
+            'assignments' => ['required', 'array'],
+            'assignments.*' => ['required', 'integer', Rule::exists('staff', 'id')],
+            'payment_method' => ['required', Rule::in(['pay_at_salon'])],
+            'customer_name' => ['nullable', 'string', 'max:255'],
+            'customer_email' => ['nullable', 'email'],
+            'customer_phone' => ['required', 'string', 'max:30'],
+            'notes' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $serviceIds = collect($validated['services'])
+            ->map(static fn($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($serviceIds->isEmpty()) {
+            throw ValidationException::withMessages([
+                'services' => 'Minimal satu layanan harus dipilih.',
+            ]);
+        }
+
+        $assignments = collect($validated['assignments'] ?? [])
+            ->mapWithKeys(static function ($staffId, $serviceId): array {
+                return [(int) $serviceId => (int) $staffId];
+            });
+
+        if ($assignments->count() !== $serviceIds->count()) {
+            throw ValidationException::withMessages([
+                'assignments' => 'Setiap layanan harus memiliki stylist yang ditentukan.',
+            ]);
+        }
+
+        $store = Store::query()->findOrFail((int) $validated['store_id']);
+
+        $services = Service::query()
+            ->whereIn('id', $serviceIds)
+            ->where('store_id', $store->id)
+            ->get()
+            ->keyBy('id');
+
+        if ($services->count() !== $serviceIds->count()) {
+            throw ValidationException::withMessages([
+                'services' => 'Layanan yang dipilih tidak tersedia.',
+            ]);
+        }
+
+        $staffIds = $assignments->values()->unique()->values();
+
+        $staffMembers = Staff::query()
+            ->whereIn('id', $staffIds)
+            ->where('store_id', $store->id)
+            ->with(['services:id'])
+            ->get()
+            ->keyBy('id');
+
+        if ($staffMembers->count() !== $staffIds->count()) {
+            throw ValidationException::withMessages([
+                'assignments' => 'Stylist yang dipilih tidak valid untuk store ini.',
+            ]);
+        }
+
+        foreach ($assignments as $serviceId => $staffId) {
+            $staff = $staffMembers->get($staffId);
+            $service = $services->get($serviceId);
+
+            if (! $staff || ! $service) {
+                throw ValidationException::withMessages([
+                    'assignments' => 'Pilihan stylist tidak valid.',
+                ]);
+            }
+
+            $canHandleService = $staff->services->pluck('id')->contains($serviceId);
+
+            if (! $canHandleService) {
+                throw ValidationException::withMessages([
+                    'assignments.' . $serviceId => sprintf('Stylist %s tidak dapat menangani layanan %s.', $staff->name, $service->name),
+                ]);
+            }
+        }
+
+        $bookingDate = Carbon::parse($validated['booking_date'])->toDateString();
+        $bookingTime = $validated['booking_time'];
+
+        $groupedAssignments = [];
+
+        foreach ($assignments as $serviceId => $staffId) {
+            $groupedAssignments[$staffId] ??= [];
+            $groupedAssignments[$staffId][] = $serviceId;
+        }
+
+        $createdBookings = DB::transaction(function () use ($groupedAssignments, $services, $store, $bookingDate, $bookingTime, $user, $validated): array {
+            if ($user) {
+                $user->forceFill([
+                    'name' => $validated['customer_name'] ?: $user->name,
+                    'phone' => $validated['customer_phone'],
+                ])->save();
+            }
+
+            $created = [];
+
+            foreach ($groupedAssignments as $staffId => $serviceIdList) {
+                $serviceCollection = collect($serviceIdList)
+                    ->map(fn($id) => (int) $id)
+                    ->filter()
+                    ->map(fn($id) => $services->get($id))
+                    ->filter();
+
+                if ($serviceCollection->isEmpty()) {
+                    throw ValidationException::withMessages([
+                        'services' => 'Tidak dapat membuat booking tanpa layanan yang valid.',
+                    ]);
+                }
+
+                $durationMinutes = max(30, (int) $serviceCollection->sum('duration'));
+
+                $startDateTime = Carbon::createFromFormat('Y-m-d H:i', $bookingDate . ' ' . $bookingTime);
+                $endDateTime = (clone $startDateTime)->addMinutes($durationMinutes);
+
+                $existingBookings = Booking::query()
+                    ->where('staff_id', $staffId)
+                    ->whereDate('booking_date', $bookingDate)
+                    ->where('status', '!=', 'cancelled')
+                    ->with(['items:id,booking_id,duration'])
+                    ->lockForUpdate()
+                    ->get();
+
+                foreach ($existingBookings as $existingBooking) {
+                    $existingStart = $existingBooking->booking_date instanceof Carbon
+                        ? $existingBooking->booking_date->copy()->setTimeFromTimeString($existingBooking->booking_time)
+                        : Carbon::parse($existingBooking->booking_date . ' ' . $existingBooking->booking_time);
+
+                    $existingDuration = max(30, (int) $existingBooking->items->sum('duration'));
+                    $existingEnd = (clone $existingStart)->addMinutes($existingDuration);
+
+                    if ($startDateTime->lt($existingEnd) && $endDateTime->gt($existingStart)) {
+                        throw ValidationException::withMessages([
+                            'booking_time' => 'Stylist yang dipilih sudah memiliki booking pada waktu tersebut.',
+                        ]);
+                    }
+                }
+
+                $booking = Booking::query()->create([
+                    'user_id' => $user?->id,
+                    'store_id' => $store->id,
+                    'booking_date' => $bookingDate,
+                    'booking_time' => $startDateTime->format('H:i'),
+                    'staff_id' => (int) $staffId,
+                    'status' => 'pending',
+                ]);
+
+                foreach ($serviceCollection as $service) {
+                    BookingItem::query()->create([
+                        'booking_id' => $booking->id,
+                        'service_id' => $service->id,
+                        'duration' => (int) $service->duration,
+                        'price' => $service->price,
+                    ]);
+                }
+
+                $created[] = $booking;
+            }
+
+            return $created;
+        });
+
+        $serviceSummary = $serviceIds->map(function ($serviceId) use ($services, $assignments, $staffMembers) {
+            $service = $services->get($serviceId);
+            $staffId = $assignments->get($serviceId);
+            $staffName = $staffMembers->get($staffId)?->name;
+
+            return [
+                'name' => $service?->name,
+                'duration' => (int) $service?->duration,
+                'price' => $service?->price,
+                'staff' => $staffName,
+            ];
+        })->filter(fn($service) => $service['name'])->values();
+
+        $totalDuration = (int) $serviceSummary->sum('duration');
+        $totalPrice = (float) $serviceSummary->sum('price');
+
+        $customerName = $validated['customer_name'] ?: ($user?->name ?? 'Pelanggan Regina Salon');
+        $emailAddress = $validated['customer_email'] ?: ($user?->email ?? null);
+
+        if ($emailAddress) {
+            Notification::route('mail', $emailAddress)->notify(new BookingPendingNotification([
+                'customer_name' => $customerName,
+                'booking_date' => Carbon::parse($bookingDate)->translatedFormat('l, d F Y'),
+                'booking_time' => Carbon::createFromFormat('H:i', $bookingTime)->format('H:i'),
+                'store' => [
+                    'name' => $store->name,
+                    'address' => collect([
+                        $store->address,
+                        $store->district,
+                        $store->city,
+                    ])->filter()->implode(', '),
+                ],
+                'services' => $serviceSummary->map(function ($service) {
+                    return [
+                        'name' => $service['name'],
+                        'duration' => $service['duration'],
+                        'staff' => $service['staff'],
+                    ];
+                })->all(),
+                'total_duration' => $totalDuration,
+                'total_price' => $totalPrice,
+                'notes' => $validated['notes'] ?? null,
+            ]));
+        }
+
+        return response()->json([
+            'message' => 'Booking berhasil disimpan dan sedang menunggu konfirmasi.',
+            'booking_ids' => collect($createdBookings)->map(fn(Booking $booking) => $booking->id)->values(),
+        ], 201);
     }
 }
