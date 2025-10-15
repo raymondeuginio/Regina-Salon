@@ -188,6 +188,114 @@
             customer: @json($customer),
         };
 
+        const MS_PER_MINUTE = 60 * 1000;
+        const MS_PER_DAY = 24 * 60 * 60 * 1000;
+        const JAKARTA_TIMEZONE = 'Asia/Jakarta';
+        const JAKARTA_OFFSET_MINUTES = 7 * 60;
+
+        const padNumber = (value, length = 2) => String(value).padStart(length, '0');
+        const padDatePart = (value) => padNumber(value, 2);
+
+        const getJakartaParts = (date) => {
+            const formatter = new Intl.DateTimeFormat('en-CA', {
+                timeZone: JAKARTA_TIMEZONE,
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false,
+            });
+
+            const parts = formatter.formatToParts(date).reduce((acc, part) => {
+                if (part.type !== 'literal') {
+                    acc[part.type] = part.value;
+                }
+                return acc;
+            }, {});
+
+            return {
+                year: Number(parts.year),
+                month: Number(parts.month),
+                day: Number(parts.day),
+                hour: Number(parts.hour),
+                minute: Number(parts.minute),
+                second: Number(parts.second),
+            };
+        };
+
+        const fromJakartaParts = ({ year, month, day, hour = 0, minute = 0, second = 0 }) => {
+            const timestamp = Date.UTC(year, month - 1, day, hour, minute, second) - (JAKARTA_OFFSET_MINUTES * MS_PER_MINUTE);
+            return new Date(timestamp);
+        };
+
+        const getJakartaNow = () => fromJakartaParts(getJakartaParts(new Date()));
+
+        const startOfJakartaDay = (date) => {
+            const parts = getJakartaParts(date);
+            return fromJakartaParts({
+                year: parts.year,
+                month: parts.month,
+                day: parts.day,
+            });
+        };
+
+        const startOfJakartaMonth = (date) => {
+            const parts = getJakartaParts(date);
+            return fromJakartaParts({
+                year: parts.year,
+                month: parts.month,
+                day: 1,
+            });
+        };
+
+        const addJakartaDays = (date, days) => new Date(date.getTime() + (days * MS_PER_DAY));
+
+        const addJakartaMonths = (date, amount) => {
+            const parts = getJakartaParts(date);
+            const base = new Date(Date.UTC(parts.year, parts.month - 1, 1));
+            base.setUTCMonth(base.getUTCMonth() + amount);
+
+            return fromJakartaParts({
+                year: base.getUTCFullYear(),
+                month: base.getUTCMonth() + 1,
+                day: 1,
+            });
+        };
+
+        const toLocalISODate = (date) => {
+            const parts = getJakartaParts(date);
+            return `${parts.year}-${padDatePart(parts.month)}-${padDatePart(parts.day)}`;
+        };
+
+        const parseLocalISODate = (isoString) => {
+            if (!isoString) {
+                return null;
+            }
+
+            const [year, month, day] = isoString.split('-').map(Number);
+
+            if ([year, month, day].some((part) => Number.isNaN(part))) {
+                return null;
+            }
+
+            return fromJakartaParts({ year, month, day });
+        };
+
+        const isSameCalendarDay = (dateA, dateB) => {
+            if (!dateA || !dateB) {
+                return false;
+            }
+
+            const partsA = getJakartaParts(dateA);
+            const partsB = getJakartaParts(dateB);
+
+            return partsA.year === partsB.year &&
+                partsA.month === partsB.month &&
+                partsA.day === partsB.day;
+        };
+
         const state = {
             services: bookingData.services.map((service) => ({
                 ...service
@@ -197,8 +305,13 @@
             selectedTime: null,
             paymentMethod: null,
             calendarMonth: (() => {
-                const today = new Date();
-                return new Date(today.getFullYear(), today.getMonth(), 1);
+                const today = getJakartaNow();
+                const parts = getJakartaParts(today);
+                return fromJakartaParts({
+                    year: parts.year,
+                    month: parts.month,
+                    day: 1,
+                });
             })(),
             customerPhone: (bookingData.customer.phone || '').trim(),
             isSubmitting: false,
@@ -305,9 +418,9 @@
         };
 
         const goToPrevMonth = () => {
-            const today = new Date();
-            const earliestMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-            const prevMonth = new Date(state.calendarMonth.getFullYear(), state.calendarMonth.getMonth() - 1, 1);
+            const today = getJakartaNow();
+            const earliestMonth = startOfJakartaMonth(today);
+            const prevMonth = addJakartaMonths(state.calendarMonth, -1);
             if (prevMonth < earliestMonth) {
                 return;
             }
@@ -321,7 +434,7 @@
         };
 
         const goToNextMonth = () => {
-            const nextMonth = new Date(state.calendarMonth.getFullYear(), state.calendarMonth.getMonth() + 1, 1);
+            const nextMonth = addJakartaMonths(state.calendarMonth, 1);
             state.calendarMonth = nextMonth;
             state.selectedDate = null;
             state.selectedTime = null;
@@ -470,7 +583,8 @@
                 return [];
             }
 
-            const dayOfWeek = date.getDay();
+            const dayParts = getJakartaParts(date);
+            const dayOfWeek = new Date(Date.UTC(dayParts.year, dayParts.month - 1, dayParts.day)).getUTCDay();
             const staffIds = Array.from(new Set(Array.from(assignments.values()).filter(Boolean)));
 
             if (!staffIds.length) {
@@ -495,9 +609,24 @@
 
             const slots = [];
             const interval = 30;
-            const isoDate = date.toISOString().split('T')[0];
+            const isoDate = toLocalISODate(date);
+            const now = getJakartaNow();
+            const nowParts = getJakartaParts(now);
+            const isToday = isSameCalendarDay(date, now);
 
-            for (let start = maxStart; start + totalDuration <= minEnd; start += interval) {
+            if (isToday && nowParts.hour >= 15) {
+                return [];
+            }
+
+            let firstSlotStart = maxStart;
+
+            if (isToday) {
+                const nowMinutes = (nowParts.hour * 60) + nowParts.minute;
+                const nextSlot = Math.ceil(nowMinutes / interval) * interval;
+                firstSlotStart = Math.max(firstSlotStart, nextSlot);
+            }
+
+            for (let start = firstSlotStart; start + totalDuration <= minEnd; start += interval) {
                 const end = start + totalDuration;
 
                 const conflicts = staffIds.some((staffId) => {
@@ -558,7 +687,14 @@
                 return;
             }
 
-            const date = new Date(state.selectedDate);
+            const date = parseLocalISODate(state.selectedDate);
+
+            if (!date) {
+                state.selectedTime = null;
+                elements.timeOptions.innerHTML = '<p class="col-span-full rounded-2xl border border-dashed border-rose-200 bg-rose-50 px-4 py-3 text-center text-xs text-rose-500">Tanggal tidak valid.</p>';
+                return;
+            }
+
             const slots = computeSlotsForDate(date);
 
             if (!slots.some((slot) => Number(slot.start) === Number(state.selectedTime))) {
@@ -569,28 +705,32 @@
         };
 
         const renderCalendar = () => {
-            const month = new Date(state.calendarMonth);
-            const today = new Date();
-            const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+            const month = startOfJakartaMonth(state.calendarMonth);
+            state.calendarMonth = month;
+            const today = getJakartaNow();
+            const todayStart = startOfJakartaDay(today);
             const monthLabel = month.toLocaleDateString('id-ID', {
                 month: 'long',
-                year: 'numeric'
+                year: 'numeric',
+                timeZone: JAKARTA_TIMEZONE,
             });
 
             elements.calendarTitle.textContent = monthLabel;
 
-            const firstDayOfMonth = new Date(month.getFullYear(), month.getMonth(), 1);
-            const startDay = firstDayOfMonth.getDay();
-            const startDate = new Date(firstDayOfMonth);
-            startDate.setDate(firstDayOfMonth.getDate() - startDay);
+            const monthParts = getJakartaParts(month);
+            const firstDayOfMonth = fromJakartaParts({
+                year: monthParts.year,
+                month: monthParts.month,
+                day: 1,
+            });
+            const startDay = new Date(Date.UTC(monthParts.year, monthParts.month - 1, 1)).getUTCDay();
+            const startDate = addJakartaDays(firstDayOfMonth, -startDay);
 
-            const days = Array.from({
-                length: 42
-            }).map((_, index) => {
-                const currentDate = new Date(startDate);
-                currentDate.setDate(startDate.getDate() + index);
-                const iso = currentDate.toISOString().split('T')[0];
-                const inCurrentMonth = currentDate.getMonth() === month.getMonth();
+            const days = Array.from({ length: 42 }).map((_, index) => {
+                const currentDate = addJakartaDays(startDate, index);
+                const iso = toLocalISODate(currentDate);
+                const currentParts = getJakartaParts(currentDate);
+                const inCurrentMonth = currentParts.month === monthParts.month && currentParts.year === monthParts.year;
                 const isPast = currentDate < todayStart;
                 const slots = inCurrentMonth && !isPast ? computeSlotsForDate(currentDate) : [];
                 const available = slots.length > 0;
@@ -598,7 +738,7 @@
                 return {
                     date: currentDate,
                     iso,
-                    label: currentDate.getDate(),
+                    label: currentParts.day,
                     inCurrentMonth,
                     available,
                     isPast,
@@ -640,7 +780,8 @@
                 button.addEventListener('click', () => {
                     const iso = button.dataset.calendarDay;
                     state.selectedDate = iso;
-                    const slots = computeSlotsForDate(new Date(iso));
+                    const parsedDate = parseLocalISODate(iso);
+                    const slots = parsedDate ? computeSlotsForDate(parsedDate) : [];
                     state.selectedTime = null;
                     renderCalendar();
                     renderTimeSlots(slots);
@@ -648,8 +789,8 @@
                 });
             });
 
-            const prevMonth = new Date(month.getFullYear(), month.getMonth() - 1, 1);
-            const earliestMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            const prevMonth = addJakartaMonths(month, -1);
+            const earliestMonth = startOfJakartaMonth(today);
 
             elements.calendarPrev.disabled = prevMonth < earliestMonth;
 
@@ -686,10 +827,15 @@
             }
 
             if (state.selectedDate && state.selectedTime !== null) {
-                const date = new Date(state.selectedDate);
-                const startLabel = timeFromMinutes(state.selectedTime);
-                const endLabel = timeFromMinutes(state.selectedTime + getTotalDuration());
-                elements.summaryDatetime.textContent = `${date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} • ${startLabel} - ${endLabel}`;
+                const date = parseLocalISODate(state.selectedDate);
+
+                if (date) {
+                    const startLabel = timeFromMinutes(state.selectedTime);
+                    const endLabel = timeFromMinutes(state.selectedTime + getTotalDuration());
+                    elements.summaryDatetime.textContent = `${date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: JAKARTA_TIMEZONE })} • ${startLabel} - ${endLabel}`;
+                } else {
+                    elements.summaryDatetime.textContent = '-';
+                }
             } else {
                 elements.summaryDatetime.textContent = '-';
             }

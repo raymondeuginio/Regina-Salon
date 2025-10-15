@@ -272,6 +272,29 @@ class BookingController extends Controller
 
         $bookingDate = Carbon::parse($validated['booking_date'])->toDateString();
         $bookingTime = $validated['booking_time'];
+        $startDateTime = Carbon::createFromFormat('Y-m-d H:i', $bookingDate . ' ' . $bookingTime, config('app.timezone'));
+        $now = Carbon::now(config('app.timezone'));
+
+        if ($startDateTime->isSameDay($now)) {
+            $cutoff = $now->copy()->setTime(15, 0, 0);
+
+            if ($now->greaterThanOrEqualTo($cutoff)) {
+                throw ValidationException::withMessages([
+                    'booking_date' => 'Booking untuk tanggal hari ini hanya dapat dilakukan sebelum pukul 15:00.',
+                ]);
+            }
+
+            $nextSlotMinutes = (int) ceil((($now->hour * 60) + $now->minute) / 30) * 30;
+            $nextSlotHour = intdiv($nextSlotMinutes, 60);
+            $nextSlotMinute = $nextSlotMinutes % 60;
+            $nextAvailableStart = $now->copy()->setTime($nextSlotHour, $nextSlotMinute, 0);
+
+            if ($startDateTime->lessThan($nextAvailableStart)) {
+                throw ValidationException::withMessages([
+                    'booking_time' => 'Untuk booking di tanggal hari ini, pilih jam setelah waktu saat ini.',
+                ]);
+            }
+        }
 
         $groupedAssignments = [];
 
@@ -280,7 +303,9 @@ class BookingController extends Controller
             $groupedAssignments[$staffId][] = $serviceId;
         }
 
-        $createdBookings = DB::transaction(function () use ($groupedAssignments, $services, $store, $bookingDate, $bookingTime, $user, $validated): array {
+        $initialStartDateTime = $startDateTime->copy();
+
+        $createdBookings = DB::transaction(function () use ($groupedAssignments, $services, $store, $bookingDate, $bookingTime, $user, $validated, $initialStartDateTime): array {
             if ($user) {
                 $user->forceFill([
                     'name' => $validated['customer_name'] ?: $user->name,
@@ -305,7 +330,7 @@ class BookingController extends Controller
 
                 $durationMinutes = max(30, (int) $serviceCollection->sum('duration'));
 
-                $startDateTime = Carbon::createFromFormat('Y-m-d H:i', $bookingDate . ' ' . $bookingTime);
+                $startDateTime = $initialStartDateTime->copy();
                 $endDateTime = (clone $startDateTime)->addMinutes($durationMinutes);
 
                 $existingBookings = Booking::query()
