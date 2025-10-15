@@ -16,12 +16,14 @@ class Booking extends Model
         'booking_date',
         'booking_time',
         'staff_id',
+        'staff_ids',
         'status',
     ];
 
     protected $casts = [
         'booking_date' => 'date',
-        'booking_time' => 'datetime:H:i'
+        'booking_time' => 'datetime:H:i',
+        'staff_ids' => 'array',
     ];
 
     /**

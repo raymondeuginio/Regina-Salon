@@ -1,0 +1,878 @@
+@extends('layouts.public')
+
+@section('title', 'Booking Regina Salon')
+
+@section('content')
+    <section class="bg-white py-16">
+        <div class="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+            <header class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-[0.35em] text-rose-400">Booking</p>
+                    <h1 class="mt-2 text-3xl font-bold text-gray-900 sm:text-4xl">Atur Jadwal Kunjungan Anda</h1>
+                    <p class="mt-2 text-sm text-gray-500">Tinjau layanan yang dipilih, pilih stylist favorit, dan pastikan jadwalnya sesuai dengan kebutuhan Anda.</p>
+                </div>
+                <div class="rounded-3xl border border-rose-100 bg-rose-50 px-6 py-4 text-sm text-rose-500">
+                    <p class="font-semibold text-rose-600">{{ $store['name'] }}</p>
+                    <p class="mt-1 text-xs text-rose-400">{{ $store['address'] }}</p>
+                    <span class="mt-3 inline-flex rounded-full bg-white px-4 py-1 text-xs font-semibold text-rose-500">Store ID: {{ $store['id'] }}</span>
+                </div>
+            </header>
+
+            <div class="mt-12 grid gap-10 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                <form id="booking-form" class="space-y-10" autocomplete="off">
+                    <input type="hidden" name="store_id" value="{{ $store['id'] }}">
+
+                    <section class="space-y-6 rounded-3xl border border-rose-100 bg-white p-8 shadow-sm">
+                        <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <p class="text-xs font-semibold uppercase tracking-[0.3em] text-rose-400">Langkah 1</p>
+                                <h2 class="mt-1 text-xl font-semibold text-gray-900">Review Layanan</h2>
+                                <p class="text-sm text-gray-500">Pastikan daftar layanan sesuai. Anda masih bisa menghapus atau menambah layanan sebelum melanjutkan.</p>
+                            </div>
+                            <a href="{{ route('services.index', ['store_id' => $store['id']]) }}" class="inline-flex items-center justify-center rounded-full border border-rose-200 px-4 py-2 text-xs font-semibold text-rose-600 transition hover:border-rose-400 hover:text-rose-700">
+                                Tambah Layanan
+                            </a>
+                        </div>
+
+                        <div class="space-y-4" data-review-list></div>
+                    </section>
+
+                    <section class="space-y-6 rounded-3xl border border-rose-100 bg-white p-8 shadow-sm">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-[0.3em] text-rose-400">Langkah 2</p>
+                            <h2 class="mt-1 text-xl font-semibold text-gray-900">Pilih Staff / Stylist</h2>
+                            <p class="text-sm text-gray-500">Kami menampilkan stylist yang dapat menangani setiap layanan yang Anda pilih. Silakan sesuaikan jika ingin memilih stylist berbeda.</p>
+                        </div>
+
+                        <div class="space-y-5" data-staff-per-service></div>
+                    </section>
+
+                    <section class="space-y-6 rounded-3xl border border-rose-100 bg-white p-8 shadow-sm">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-[0.3em] text-rose-400">Langkah 3</p>
+                            <h2 class="mt-1 text-xl font-semibold text-gray-900">Pilih Tanggal &amp; Waktu</h2>
+                            <p class="text-sm text-gray-500">Gunakan kalender untuk memilih tanggal sesuai ketersediaan stylist. Slot waktu otomatis dinonaktifkan jika jadwal sudah penuh.</p>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div class="rounded-3xl border border-rose-100">
+                                <div class="flex items-center justify-between border-b border-rose-100 px-5 py-4">
+                                    <button type="button" class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-rose-100 text-rose-500 transition hover:border-rose-400 hover:text-rose-600" data-calendar-prev>
+                                        <span class="sr-only">Bulan sebelumnya</span>
+                                        &larr;
+                                    </button>
+                                    <div class="text-sm font-semibold text-gray-900" data-calendar-title>Bulan</div>
+                                    <button type="button" class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-rose-100 text-rose-500 transition hover:border-rose-400 hover:text-rose-600" data-calendar-next>
+                                        <span class="sr-only">Bulan berikutnya</span>
+                                        &rarr;
+                                    </button>
+                                </div>
+                                <div class="grid grid-cols-7 gap-2 px-5 pt-4 text-center text-xs font-semibold uppercase tracking-[0.3em] text-gray-400">
+                                    <span>Min</span>
+                                    <span>Sen</span>
+                                    <span>Sel</span>
+                                    <span>Rab</span>
+                                    <span>Kam</span>
+                                    <span>Jum</span>
+                                    <span>Sab</span>
+                                </div>
+                                <div class="grid grid-cols-7 gap-2 p-5" data-calendar-grid></div>
+                            </div>
+                            <div>
+                                <p class="text-xs font-semibold uppercase tracking-[0.25em] text-gray-500">Pilih waktu</p>
+                                <div class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3" data-time-options>
+                                    <p class="col-span-full rounded-2xl border border-dashed border-rose-200 bg-rose-50 px-4 py-3 text-center text-xs text-rose-500">Pilih tanggal terlebih dahulu untuk melihat slot waktu.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="space-y-6 rounded-3xl border border-rose-100 bg-white p-8 shadow-sm">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-[0.3em] text-rose-400">Langkah 4</p>
+                            <h2 class="mt-1 text-xl font-semibold text-gray-900">Informasi Customer</h2>
+                            <p class="text-sm text-gray-500">Data otomatis terisi dari akun Anda. Silakan periksa kembali atau lakukan penyesuaian bila diperlukan.</p>
+                        </div>
+
+                        <div class="grid gap-4 sm:grid-cols-2">
+                            <label class="text-sm font-medium text-gray-700">
+                                Nama Lengkap
+                                <input type="text" name="customer_name" class="mt-1 w-full rounded-2xl border border-rose-100 px-4 py-3 text-sm focus:border-rose-400 focus:outline-none focus:ring-1 focus:ring-rose-200" value="{{ $customer['name'] }}" placeholder="Nama lengkap Anda">
+                            </label>
+                            <label class="text-sm font-medium text-gray-700">
+                                Email <span class="text-rose-500">*</span>
+                                <input type="email" name="customer_email" required class="mt-1 w-full rounded-2xl border border-rose-100 px-4 py-3 text-sm focus:border-rose-400 focus:outline-none focus:ring-1 focus:ring-rose-200" value="{{ $customer['email'] }}" placeholder="Email aktif">
+                            </label>
+                            <label class="text-sm font-medium text-gray-700 sm:col-span-2">
+                                Nomor WhatsApp
+                                <input type="tel" name="customer_phone" inputmode="tel" pattern="[0-9+\s]+" readonly class="mt-1 w-full rounded-2xl border border-rose-100 bg-gray-50 px-4 py-3 text-sm focus:border-rose-400 focus:outline-none focus:ring-1 focus:ring-rose-200" value="{{ $customer['phone'] }}" placeholder="Nomor WhatsApp terisi otomatis">
+                                <span class="mt-1 block text-xs text-gray-400">Nomor WhatsApp ini diambil dari profil akun Anda. Perbarui melalui <a href="{{ route('profile.edit') }}" class="font-semibold text-rose-500 underline-offset-2 hover:underline">halaman Profil</a> jika diperlukan.</span>
+                                @if(empty($customer['phone']))
+                                    <span class="mt-1 block text-xs font-semibold text-rose-500">Nomor WhatsApp Anda belum tersimpan. Mohon lengkapi di halaman profil sebelum melakukan konfirmasi booking.</span>
+                                @endif
+                            </label>
+                            <label class="text-sm font-medium text-gray-700 sm:col-span-2">
+                                Catatan Tambahan
+                                <textarea name="notes" rows="3" class="mt-1 w-full rounded-2xl border border-rose-100 px-4 py-3 text-sm focus:border-rose-400 focus:outline-none focus:ring-1 focus:ring-rose-200" placeholder="Catat permintaan khusus atau kondisi rambut/kulit Anda"></textarea>
+                            </label>
+                        </div>
+                    </section>
+
+                    <section class="space-y-6 rounded-3xl border border-rose-100 bg-white p-8 shadow-sm">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-[0.3em] text-rose-400">Langkah 5</p>
+                            <h2 class="mt-1 text-xl font-semibold text-gray-900">Pembayaran</h2>
+                            <p class="text-sm text-gray-500">Pilih metode pembayaran yang tersedia untuk booking Anda.</p>
+                        </div>
+                        <label class="flex items-start gap-3 rounded-2xl border border-rose-100 px-4 py-3 text-sm text-gray-600">
+                            <input type="radio" name="payment_method" value="pay_at_salon" class="mt-1">
+                            <span>
+                                <span class="block font-semibold text-gray-900">Pay at Salon</span>
+                                <span class="text-xs text-gray-500">Bayar langsung di lokasi saat kedatangan.</span>
+                            </span>
+                        </label>
+                    </section>
+                </form>
+
+                <aside class="space-y-6 rounded-3xl border border-rose-100 bg-white p-8 shadow-sm" data-booking-summary>
+                    <div class="hidden rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700" data-confirmation-message>
+                        <p class="font-semibold" data-confirmation-title>Booking berhasil dibuat!</p>
+                        <p class="mt-1 text-xs" data-confirmation-body>Kami mengirimkan pengingat melalui email segera setelah booking tersimpan.</p>
+                    </div>
+                    <div class="hidden rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-600" data-error-message></div>
+
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-[0.3em] text-rose-400">Ringkasan Booking</p>
+                        <h3 class="mt-2 text-xl font-semibold text-gray-900">Detail pilihan Anda</h3>
+                    </div>
+
+                    <div class="space-y-4 text-sm" data-summary-services></div>
+
+                    <dl class="space-y-3 text-sm">
+                        <div class="flex items-center justify-between text-gray-500">
+                            <dt>Durasi Total</dt>
+                            <dd class="font-semibold text-gray-900" data-summary-duration>-</dd>
+                        </div>
+                        <div class="flex items-center justify-between text-gray-500">
+                            <dt>Stylist</dt>
+                            <dd class="font-semibold text-gray-900" data-summary-staff>-</dd>
+                        </div>
+                        <div class="flex items-center justify-between text-gray-500">
+                            <dt>Tanggal &amp; Waktu</dt>
+                            <dd class="font-semibold text-gray-900" data-summary-datetime>-</dd>
+                        </div>
+                        <div class="flex items-center justify-between text-gray-500">
+                            <dt>Metode Pembayaran</dt>
+                            <dd class="font-semibold text-gray-900" data-summary-payment>-</dd>
+                        </div>
+                    </dl>
+
+                    <div class="flex items-center justify-between rounded-2xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-600">
+                        <span>Total</span>
+                        <span data-summary-total>IDR 0</span>
+                    </div>
+
+                    <button type="submit" form="booking-form" class="inline-flex w-full items-center justify-center rounded-full bg-rose-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-rose-300" data-confirm-button>
+                        Konfirmasi Booking
+                    </button>
+                </aside>
+            </div>
+        </div>
+    </section>
+@endsection
+
+@push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const bookingData = {
+                services: @json($services),
+                staff: @json($staff),
+                customer: @json($customer),
+                endpoints: {
+                    store: @json(route('booking.store')),
+                },
+            };
+
+            if (bookingData.customer && typeof bookingData.customer.phone === 'string') {
+                bookingData.customer.phone = bookingData.customer.phone.trim();
+            }
+
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
+
+            const state = {
+                services: bookingData.services.map((service) => ({ ...service })),
+                staffAssignments: new Map(),
+                selectedDate: null,
+                selectedTime: null,
+                paymentMethod: null,
+                calendarMonth: (() => {
+                    const today = new Date();
+                    return new Date(today.getFullYear(), today.getMonth(), 1);
+                })(),
+            };
+
+            const elements = {
+                reviewList: document.querySelector('[data-review-list]'),
+                staffContainer: document.querySelector('[data-staff-per-service]'),
+                calendarTitle: document.querySelector('[data-calendar-title]'),
+                calendarGrid: document.querySelector('[data-calendar-grid]'),
+                calendarPrev: document.querySelector('[data-calendar-prev]'),
+                calendarNext: document.querySelector('[data-calendar-next]'),
+                timeOptions: document.querySelector('[data-time-options]'),
+                summaryServices: document.querySelector('[data-summary-services]'),
+                summaryDuration: document.querySelector('[data-summary-duration]'),
+                summaryStaff: document.querySelector('[data-summary-staff]'),
+                summaryDatetime: document.querySelector('[data-summary-datetime]'),
+                summaryPayment: document.querySelector('[data-summary-payment]'),
+                summaryTotal: document.querySelector('[data-summary-total]'),
+                paymentInputs: document.querySelectorAll('input[name="payment_method"]'),
+                confirmButton: document.querySelector('[data-confirm-button]'),
+                confirmationMessage: document.querySelector('[data-confirmation-message]'),
+                confirmationTitle: document.querySelector('[data-confirmation-title]'),
+                confirmationBody: document.querySelector('[data-confirmation-body]'),
+                errorMessage: document.querySelector('[data-error-message]'),
+                form: document.getElementById('booking-form'),
+                phoneInput: document.querySelector('input[name="customer_phone"]'),
+            };
+
+            if (elements.phoneInput) {
+                elements.phoneInput.value = bookingData.customer?.phone ?? '';
+                elements.phoneInput.setAttribute('readonly', 'readonly');
+            }
+
+            const clearError = () => {
+                if (!elements.errorMessage) {
+                    return;
+                }
+                elements.errorMessage.classList.add('hidden');
+                elements.errorMessage.textContent = '';
+            };
+
+            const showError = (message) => {
+                if (!elements.errorMessage) {
+                    return;
+                }
+                elements.errorMessage.textContent = message;
+                elements.errorMessage.classList.remove('hidden');
+            };
+
+            const formatCurrency = (value) => new Intl.NumberFormat('id-ID', {
+                style: 'currency',
+                currency: 'IDR',
+                minimumFractionDigits: 0,
+            }).format(value || 0);
+
+            const formatDuration = () => {
+                const totalMinutes = state.services.reduce((sum, service) => sum + (Number(service.duration) || 0), 0);
+                if (!totalMinutes) {
+                    return '-';
+                }
+
+                const hours = Math.floor(totalMinutes / 60);
+                const minutes = totalMinutes % 60;
+
+                if (hours && minutes) {
+                    return `${hours} jam ${minutes} menit`;
+                }
+
+                if (hours) {
+                    return `${hours} jam`;
+                }
+
+                return `${minutes} menit`;
+            };
+
+            const minutesFromTime = (time) => {
+                const [hours, minutes] = time.split(':').map(Number);
+                return (hours * 60) + minutes;
+            };
+
+            const timeFromMinutes = (minutes) => {
+                const hrs = Math.floor(minutes / 60).toString().padStart(2, '0');
+                const mins = (minutes % 60).toString().padStart(2, '0');
+                return `${hrs}:${mins}`;
+            };
+
+            const getStaffById = (id) => bookingData.staff.find((staff) => Number(staff.id) === Number(id)) || null;
+
+            const getStaffForService = (service) => {
+                const serviceId = Number(service.id);
+                const byService = bookingData.staff.filter((staff) => Array.isArray(staff.service_ids) && staff.service_ids.includes(serviceId));
+                return byService.length ? byService : bookingData.staff;
+            };
+
+            const ensureAssignments = () => {
+                const serviceIds = state.services.map((service) => String(service.id));
+
+                // Remove assignments for services that are no longer selected
+                Array.from(state.staffAssignments.keys()).forEach((key) => {
+                    if (!serviceIds.includes(key)) {
+                        state.staffAssignments.delete(key);
+                    }
+                });
+
+                // Ensure each service has an available staff member selected
+                state.services.forEach((service) => {
+                    const serviceId = String(service.id);
+                    const availableStaff = getStaffForService(service);
+                    if (!availableStaff.length) {
+                        state.staffAssignments.delete(serviceId);
+                        return;
+                    }
+
+                    const currentSelection = state.staffAssignments.get(serviceId);
+                    const stillValid = availableStaff.some((staff) => Number(staff.id) === Number(currentSelection));
+
+                    if (!stillValid) {
+                        state.staffAssignments.set(serviceId, Number(availableStaff[0].id));
+                    }
+                });
+            };
+
+            const getAssignments = () => {
+                ensureAssignments();
+                return new Map(state.staffAssignments);
+            };
+
+            const goToPrevMonth = () => {
+                const today = new Date();
+                const earliestMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+                const prevMonth = new Date(state.calendarMonth.getFullYear(), state.calendarMonth.getMonth() - 1, 1);
+                if (prevMonth < earliestMonth) {
+                    return;
+                }
+
+                state.calendarMonth = prevMonth;
+                state.selectedDate = null;
+                state.selectedTime = null;
+                renderCalendar();
+                updateTimeSlotsForSelectedDate();
+                updateSummary();
+            };
+
+            const goToNextMonth = () => {
+                const nextMonth = new Date(state.calendarMonth.getFullYear(), state.calendarMonth.getMonth() + 1, 1);
+                state.calendarMonth = nextMonth;
+                state.selectedDate = null;
+                state.selectedTime = null;
+                renderCalendar();
+                updateTimeSlotsForSelectedDate();
+                updateSummary();
+            };
+
+            const renderReviewServices = () => {
+                if (!state.services.length) {
+                    elements.reviewList.innerHTML = '<p class="rounded-2xl bg-rose-50 px-4 py-3 text-rose-500">Belum ada layanan dipilih. Silakan tambah layanan terlebih dahulu.</p>';
+                    return;
+                }
+
+                elements.reviewList.innerHTML = state.services.map((service) => `
+                    <div class="flex flex-col gap-3 rounded-2xl border border-rose-100 bg-rose-50/70 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <p class="text-sm font-semibold text-gray-900">${service.name}</p>
+                            <p class="mt-1 text-xs text-gray-500">${service.duration} menit &bull; ${formatCurrency(service.price)}</p>
+                        </div>
+                        <button type="button" class="inline-flex items-center justify-center rounded-full border border-rose-200 px-4 py-2 text-xs font-semibold text-rose-500 transition hover:border-rose-400 hover:text-rose-700" data-remove-service="${service.id}">Hapus</button>
+                    </div>
+                `).join('');
+
+                elements.reviewList.querySelectorAll('[data-remove-service]').forEach((button) => {
+                    button.addEventListener('click', () => {
+                        const serviceId = Number(button.dataset.removeService);
+                        state.services = state.services.filter((service) => Number(service.id) !== serviceId);
+                        state.staffAssignments.delete(String(serviceId));
+                        if (!state.services.length) {
+                            state.selectedDate = null;
+                            state.selectedTime = null;
+                        }
+                        updateUI();
+                    });
+                });
+            };
+
+            const renderStaffCard = (staff) => {
+                if (!staff) {
+                    return '';
+                }
+
+                const specialisations = staff.specialisations.length ? staff.specialisations.join(' • ') : 'Semua layanan umum';
+
+                return `
+                    <div class="mt-4 flex items-start gap-4 rounded-2xl border border-rose-100 bg-white px-4 py-4">
+                        <img src="${staff.photo}" alt="${staff.name}" class="h-16 w-16 rounded-full object-cover" loading="lazy">
+                        <div class="space-y-1 text-sm">
+                            <p class="font-semibold text-gray-900">${staff.name}</p>
+                            <p class="text-xs text-gray-500">Spesialisasi: ${specialisations}</p>
+                            <p class="text-xs text-gray-500">${staff.bio}</p>
+                        </div>
+                    </div>
+                `;
+            };
+
+            const renderStaffSelectors = () => {
+                ensureAssignments();
+
+                if (!state.services.length) {
+                    elements.staffContainer.innerHTML = '<p class="rounded-2xl bg-rose-50 px-4 py-3 text-rose-500">Tambahkan layanan terlebih dahulu untuk melihat stylist yang tersedia.</p>';
+                    return;
+                }
+
+                const markup = state.services.map((service) => {
+                    const availableStaff = getStaffForService(service);
+                    const selectedId = state.staffAssignments.get(String(service.id));
+
+                    if (!availableStaff.length) {
+                        return `
+                            <div class="rounded-2xl border border-dashed border-rose-200 bg-rose-50/60 p-4">
+                                <p class="text-sm font-semibold text-gray-900">${service.name}</p>
+                                <p class="mt-1 text-xs text-rose-500">Belum ada stylist yang dapat menangani layanan ini.</p>
+                            </div>
+                        `;
+                    }
+
+                    const options = availableStaff.map((staff) => `
+                        <option value="${staff.id}" ${Number(selectedId) === Number(staff.id) ? 'selected' : ''}>${staff.name}</option>
+                    `).join('');
+
+                    const staffCard = renderStaffCard(getStaffById(selectedId));
+
+                    return `
+                        <div class="rounded-2xl border border-rose-100 bg-rose-50/60 p-4">
+                            <p class="text-sm font-semibold text-gray-900">${service.name}</p>
+                            <p class="text-xs text-gray-500">${service.duration} menit &bull; ${formatCurrency(service.price)}</p>
+                            <label class="mt-3 block text-xs font-medium text-gray-700">Pilih stylist
+                                <select data-service-staff="${service.id}" class="mt-1 w-full rounded-2xl border border-rose-100 bg-white px-4 py-3 text-sm focus:border-rose-400 focus:outline-none focus:ring-1 focus:ring-rose-200">
+                                    ${options}
+                                </select>
+                            </label>
+                            ${staffCard}
+                        </div>
+                    `;
+                }).join('');
+
+                elements.staffContainer.innerHTML = markup;
+
+                elements.staffContainer.querySelectorAll('[data-service-staff]').forEach((select) => {
+                    select.addEventListener('change', () => {
+                        const serviceId = String(select.dataset.serviceStaff);
+                        state.staffAssignments.set(serviceId, Number(select.value));
+                        state.selectedDate = null;
+                        state.selectedTime = null;
+                        updateUI();
+                    });
+                });
+            };
+
+            const getTotalDuration = () => state.services.reduce((sum, service) => sum + (Number(service.duration) || 0), 0);
+
+            const getSchedulesForStaff = (staffId) => {
+                const staff = getStaffById(staffId);
+                if (!staff) {
+                    return [];
+                }
+
+                if (staff.schedules && staff.schedules.length) {
+                    return staff.schedules;
+                }
+
+                return Array.from({ length: 7 }).map((_, index) => ({
+                    day_of_week: index,
+                    start_time: '09:00',
+                    end_time: '18:00',
+                }));
+            };
+
+            const getBookingsForStaff = (staffId) => {
+                const staff = getStaffById(staffId);
+                if (!staff) {
+                    return [];
+                }
+                return staff.bookings || [];
+            };
+
+            const computeSlotsForDate = (date) => {
+                const assignments = getAssignments();
+                const totalDuration = getTotalDuration();
+
+                if (!assignments.size || !totalDuration) {
+                    return [];
+                }
+
+                const dayOfWeek = date.getDay();
+                const staffIds = Array.from(new Set(Array.from(assignments.values()).filter(Boolean)));
+
+                if (!staffIds.length) {
+                    return [];
+                }
+
+                const dailySchedules = staffIds.map((id) => {
+                    const schedules = getSchedulesForStaff(id);
+                    return schedules.find((schedule) => Number(schedule.day_of_week) === Number(dayOfWeek)) || null;
+                });
+
+                if (dailySchedules.some((schedule) => !schedule)) {
+                    return [];
+                }
+
+                const maxStart = Math.max(...dailySchedules.map((schedule) => minutesFromTime((schedule.start_time || '09:00').slice(0, 5))));
+                const minEnd = Math.min(...dailySchedules.map((schedule) => minutesFromTime((schedule.end_time || '18:00').slice(0, 5))));
+
+                if (Number.isNaN(maxStart) || Number.isNaN(minEnd) || maxStart >= minEnd) {
+                    return [];
+                }
+
+                const slots = [];
+                const interval = 30;
+                const isoDate = date.toISOString().split('T')[0];
+
+                for (let start = maxStart; start + totalDuration <= minEnd; start += interval) {
+                    const end = start + totalDuration;
+
+                    const conflicts = staffIds.some((staffId) => {
+                        const bookings = getBookingsForStaff(staffId).filter((booking) => booking.date === isoDate);
+                        return bookings.some((booking) => {
+                            const bookingStart = minutesFromTime((booking.start_time || '00:00').slice(0, 5));
+                            const bookingEnd = bookingStart + (Number(booking.duration) || 0);
+                            return end > bookingStart && start < bookingEnd;
+                        });
+                    });
+
+                    if (!conflicts) {
+                        slots.push({
+                            start,
+                            end,
+                            label: `${timeFromMinutes(start)} - ${timeFromMinutes(end)}`,
+                        });
+                    }
+                }
+
+                return slots;
+            };
+
+            const renderTimeSlots = (slots) => {
+                if (!slots.length) {
+                    elements.timeOptions.innerHTML = '<p class="col-span-full rounded-2xl border border-dashed border-rose-200 bg-rose-50 px-4 py-3 text-center text-xs text-rose-500">Tidak ada slot tersedia pada tanggal ini.</p>';
+                    return;
+                }
+
+                elements.timeOptions.innerHTML = slots.map((slot) => {
+                    const isActive = Number(state.selectedTime) === Number(slot.start);
+                    return `
+                        <button type="button" data-pick-time="${slot.start}" class="rounded-2xl border px-4 py-3 text-sm transition ${isActive ? 'border-rose-500 bg-rose-500 text-white hover:border-rose-500' : 'border-rose-100 bg-white text-gray-700 hover:border-rose-400'}">
+                            ${slot.label}
+                        </button>
+                    `;
+                }).join('');
+
+                elements.timeOptions.querySelectorAll('[data-pick-time]').forEach((button) => {
+                    button.addEventListener('click', () => {
+                        state.selectedTime = Number(button.dataset.pickTime);
+                        renderTimeSlots(slots);
+                        updateSummary();
+                    });
+                });
+            };
+
+            const updateTimeSlotsForSelectedDate = () => {
+                const assignments = getAssignments();
+
+                if (!assignments.size) {
+                    elements.timeOptions.innerHTML = '<p class="col-span-full rounded-2xl border border-dashed border-rose-200 bg-rose-50 px-4 py-3 text-center text-xs text-rose-500">Pilih stylist yang tersedia terlebih dahulu.</p>';
+                    return;
+                }
+
+                if (!state.selectedDate) {
+                    elements.timeOptions.innerHTML = '<p class="col-span-full rounded-2xl border border-dashed border-rose-200 bg-rose-50 px-4 py-3 text-center text-xs text-rose-500">Pilih tanggal terlebih dahulu untuk melihat slot waktu.</p>';
+                    return;
+                }
+
+                const date = new Date(state.selectedDate);
+                const slots = computeSlotsForDate(date);
+
+                if (!slots.some((slot) => Number(slot.start) === Number(state.selectedTime))) {
+                    state.selectedTime = null;
+                }
+
+                renderTimeSlots(slots);
+            };
+
+            const renderCalendar = () => {
+                const month = new Date(state.calendarMonth);
+                const today = new Date();
+                const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                const monthLabel = month.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+
+                elements.calendarTitle.textContent = monthLabel;
+
+                const firstDayOfMonth = new Date(month.getFullYear(), month.getMonth(), 1);
+                const startDay = firstDayOfMonth.getDay();
+                const startDate = new Date(firstDayOfMonth);
+                startDate.setDate(firstDayOfMonth.getDate() - startDay);
+
+                const days = Array.from({ length: 42 }).map((_, index) => {
+                    const currentDate = new Date(startDate);
+                    currentDate.setDate(startDate.getDate() + index);
+                    const iso = currentDate.toISOString().split('T')[0];
+                    const inCurrentMonth = currentDate.getMonth() === month.getMonth();
+                    const isPast = currentDate < todayStart;
+                    const slots = inCurrentMonth && !isPast ? computeSlotsForDate(currentDate) : [];
+                    const available = slots.length > 0;
+
+                    return {
+                        date: currentDate,
+                        iso,
+                        label: currentDate.getDate(),
+                        inCurrentMonth,
+                        available,
+                        isPast,
+                        slots,
+                    };
+                });
+
+                const selectedDay = days.find((day) => day.iso === state.selectedDate);
+                if (!selectedDay || !selectedDay.available) {
+                    state.selectedDate = null;
+                    state.selectedTime = null;
+                }
+
+                elements.calendarGrid.innerHTML = days.map((day) => {
+                    const isSelected = state.selectedDate === day.iso;
+                    const disabled = !day.inCurrentMonth || day.isPast || !day.available;
+
+                    const baseClasses = ['relative', 'flex', 'h-12', 'items-center', 'justify-center', 'rounded-2xl', 'border', 'text-sm', 'transition'];
+
+                    if (disabled) {
+                        baseClasses.push('cursor-not-allowed', 'border-dashed', 'border-rose-100', 'bg-rose-50', 'text-rose-300');
+                    } else if (isSelected) {
+                        baseClasses.push('border-rose-500', 'bg-rose-500', 'font-semibold', 'text-white');
+                    } else {
+                        baseClasses.push('border-rose-100', 'bg-white', 'text-gray-700', 'hover:border-rose-400');
+                    }
+
+                    const indicator = !disabled && !isSelected ? '<span class="absolute bottom-1 h-1.5 w-1.5 rounded-full bg-emerald-400"></span>' : '';
+
+                    return `
+                        <button type="button" class="${baseClasses.join(' ')}" ${disabled ? 'disabled' : `data-calendar-day="${day.iso}"`}>
+                            ${day.label}
+                            ${isSelected ? '<span class="absolute bottom-1 h-1.5 w-1.5 rounded-full bg-white"></span>' : indicator}
+                        </button>
+                    `;
+                }).join('');
+
+                elements.calendarGrid.querySelectorAll('[data-calendar-day]').forEach((button) => {
+                    button.addEventListener('click', () => {
+                        const iso = button.dataset.calendarDay;
+                        state.selectedDate = iso;
+                        const slots = computeSlotsForDate(new Date(iso));
+                        state.selectedTime = null;
+                        renderCalendar();
+                        renderTimeSlots(slots);
+                        updateSummary();
+                    });
+                });
+
+                const prevMonth = new Date(month.getFullYear(), month.getMonth() - 1, 1);
+                const earliestMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+                elements.calendarPrev.disabled = prevMonth < earliestMonth;
+
+                elements.calendarPrev.classList.toggle('cursor-not-allowed', elements.calendarPrev.disabled);
+                elements.calendarPrev.classList.toggle('opacity-50', elements.calendarPrev.disabled);
+                elements.calendarPrev.setAttribute('aria-disabled', elements.calendarPrev.disabled ? 'true' : 'false');
+            };
+
+            const renderSummary = () => {
+                if (!state.services.length) {
+                    elements.summaryServices.innerHTML = '<p class="rounded-2xl bg-rose-50 px-4 py-3 text-rose-500">Belum ada layanan dipilih.</p>';
+                } else {
+                    elements.summaryServices.innerHTML = state.services.map((service) => {
+                        const staffId = state.staffAssignments.get(String(service.id));
+                        const staffName = getStaffById(staffId)?.name;
+                        return `
+                            <div class="rounded-2xl border border-rose-100 bg-rose-50/60 px-4 py-3">
+                                <p class="text-sm font-semibold text-gray-900">${service.name}</p>
+                                <p class="text-xs text-gray-500">${service.duration} menit &bull; ${formatCurrency(service.price)}</p>
+                                ${staffName ? `<p class="mt-1 text-xs text-rose-500">Stylist: ${staffName}</p>` : ''}
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                elements.summaryDuration.textContent = state.services.length ? formatDuration() : '-';
+
+                const assignments = getAssignments();
+                if (!assignments.size) {
+                    elements.summaryStaff.textContent = '-';
+                } else {
+                    const staffNames = Array.from(new Set(Array.from(assignments.values()).map((id) => getStaffById(id)?.name).filter(Boolean)));
+                    elements.summaryStaff.textContent = staffNames.length ? staffNames.join(', ') : '-';
+                }
+
+                if (state.selectedDate && state.selectedTime !== null) {
+                    const date = new Date(state.selectedDate);
+                    const startLabel = timeFromMinutes(state.selectedTime);
+                    const endLabel = timeFromMinutes(state.selectedTime + getTotalDuration());
+                    elements.summaryDatetime.textContent = `${date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} • ${startLabel} - ${endLabel}`;
+                } else {
+                    elements.summaryDatetime.textContent = '-';
+                }
+
+                elements.summaryPayment.textContent = state.paymentMethod === 'pay_at_salon' ? 'Pay at Salon' : '-';
+
+                const totalPrice = state.services.reduce((sum, service) => sum + (Number(service.price) || 0), 0);
+                elements.summaryTotal.textContent = formatCurrency(totalPrice);
+            };
+
+            const updateSummary = () => {
+                renderSummary();
+                const assignments = getAssignments();
+                const hasAllStaff = state.services.length && Array.from(assignments.keys()).length === state.services.length && Array.from(assignments.values()).every(Boolean);
+
+                const hasPhone = (() => {
+                    const raw = elements.phoneInput ? elements.phoneInput.value : bookingData.customer?.phone ?? '';
+                    return raw.replace(/[^0-9+]/g, '').length >= 9;
+                })();
+
+                const isValid = hasAllStaff
+                    && state.selectedDate
+                    && state.selectedTime !== null
+                    && state.paymentMethod
+                    && hasPhone;
+
+                elements.confirmButton.disabled = !isValid;
+            };
+
+            const updateUI = () => {
+                ensureAssignments();
+                renderReviewServices();
+                renderStaffSelectors();
+                renderCalendar();
+                updateTimeSlotsForSelectedDate();
+                updateSummary();
+            };
+
+            elements.paymentInputs.forEach((input) => {
+                input.addEventListener('change', () => {
+                    state.paymentMethod = input.value;
+                    updateSummary();
+                });
+            });
+
+            elements.calendarPrev.addEventListener('click', goToPrevMonth);
+            elements.calendarNext.addEventListener('click', goToNextMonth);
+
+            elements.form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                if (elements.confirmButton.disabled) {
+                    return;
+                }
+                clearError();
+
+                const formData = new FormData(elements.form);
+                const assignments = Object.fromEntries(Array.from(getAssignments().entries()).map(([serviceId, staffId]) => [serviceId, Number(staffId)]));
+
+                const payload = {
+                    store_id: Number(formData.get('store_id')),
+                    services: state.services.map((service) => Number(service.id)),
+                    staff_assignments: assignments,
+                    booking_date: state.selectedDate,
+                    booking_time: state.selectedTime !== null ? timeFromMinutes(state.selectedTime) : null,
+                    payment_method: state.paymentMethod,
+                    customer_name: formData.get('customer_name')?.toString().trim() ?? '',
+                    customer_email: formData.get('customer_email')?.toString().trim() ?? '',
+                    notes: formData.get('notes')?.toString().trim() ?? '',
+                };
+
+                if (!payload.booking_date || payload.booking_time === null) {
+                    showError('Pilih tanggal dan waktu booking terlebih dahulu.');
+                    return;
+                }
+
+                elements.confirmButton.disabled = true;
+                const originalLabel = elements.confirmButton.textContent;
+                elements.confirmButton.textContent = 'Memproses...';
+
+                try {
+                    const response = await fetch(bookingData.endpoints.store, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Accept: 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': csrfToken,
+                        },
+                        body: JSON.stringify(payload),
+                    });
+
+                    const data = await response.json().catch(() => ({}));
+
+                    if (!response.ok) {
+                        const errorMessages = data?.errors
+                            ? Object.values(data.errors).flat().join(' ')
+                            : '';
+                        const message = [data?.message, errorMessages].filter(Boolean).join(' ')
+                            || 'Terjadi kesalahan saat membuat booking.';
+                        showError(message);
+                        elements.confirmButton.disabled = false;
+                        elements.confirmButton.textContent = originalLabel;
+                        return;
+                    }
+
+                    if (typeof data.customer_phone === 'string' && elements.phoneInput) {
+                        elements.phoneInput.value = data.customer_phone;
+                        bookingData.customer.phone = data.customer_phone;
+                    }
+
+                    const reminderText = data.email_sent
+                        ? `Kami telah mengirimkan pengingat email ke ${data.customer_email}.`
+                        : 'Booking tersimpan. Kami akan mengirimkan pengingat email segera setelah sistem siap.';
+
+                    if (elements.confirmationMessage) {
+                        if (elements.confirmationTitle) {
+                            elements.confirmationTitle.textContent = data.message || 'Booking berhasil dibuat!';
+                        }
+                        if (elements.confirmationBody) {
+                            elements.confirmationBody.textContent = reminderText;
+                        }
+                        elements.confirmationMessage.classList.remove('hidden');
+                    }
+
+                    clearError();
+
+                    const booked = data.booking;
+                    if (booked && Array.isArray(booked.staff_ids)) {
+                        const bookingEntry = {
+                            date: booked.booking_date,
+                            start_time: booked.booking_time,
+                            duration: booked.duration_minutes,
+                        };
+
+                        bookingData.staff.forEach((staff) => {
+                            if (booked.staff_ids.some((id) => Number(id) === Number(staff.id))) {
+                                const existing = staff.bookings || [];
+                                const alreadyExists = existing.some((item) => item.date === bookingEntry.date && item.start_time === bookingEntry.start_time);
+                                if (!alreadyExists) {
+                                    existing.push(bookingEntry);
+                                }
+                                staff.bookings = existing;
+                            }
+                        });
+
+                        updateTimeSlotsForSelectedDate();
+                        renderCalendar();
+                    }
+
+                    elements.confirmButton.textContent = 'Booking Terkonfirmasi';
+                } catch (error) {
+                    showError('Terjadi kesalahan pada sistem. Silakan coba lagi.');
+                    elements.confirmButton.disabled = false;
+                    elements.confirmButton.textContent = originalLabel;
+                    return;
+                }
+            });
+            });
+
+            updateUI();
+        });
+    </script>
+@endpush

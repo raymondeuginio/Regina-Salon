@@ -55,7 +55,7 @@
                         </div>
 
                         <div class="mt-10 grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-                            <form id="service-selection" class="space-y-8" method="GET" action="{{ url('/booking') }}">
+                            <form id="service-selection" class="space-y-8" method="GET" action="{{ route('booking.index') }}">
                                 <input type="hidden" name="store_id" value="{{ $storeId }}">
 
                                 @foreach ($categories as $category)
