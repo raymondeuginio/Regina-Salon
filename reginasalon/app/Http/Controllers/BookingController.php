@@ -81,12 +81,19 @@ class BookingController extends Controller
                     $query->select(['id', 'staff_id', 'day_of_week', 'start_time', 'end_time'])
                         ->orderBy('day_of_week');
                 },
-                'bookings' => static function ($query) use ($startDate, $endDate): void {
-                    $query->select(['id', 'staff_id', 'service_id', 'booking_date', 'booking_time'])
-                        ->whereBetween('booking_date', [$startDate->toDateString(), $endDate->toDateString()])
-                        ->with(['items:id,booking_id,duration'])
-                        ->orderBy('booking_date')
-                        ->orderBy('booking_time');
+                'bookingItems' => static function ($query) use ($startDate, $endDate): void {
+                    $query->select(['id', 'booking_id', 'staff_id', 'service_id', 'start_time', 'duration'])
+                        ->whereHas('booking', static function ($bookingQuery) use ($startDate, $endDate): void {
+                            $bookingQuery->whereBetween('booking_date', [$startDate->toDateString(), $endDate->toDateString()])
+                                ->where('status', '!=', 'cancelled');
+                        })
+                        ->with([
+                            'booking' => static function ($bookingQuery): void {
+                                $bookingQuery->select(['id', 'booking_date', 'booking_time', 'status']);
+                            },
+                        ])
+                        ->orderBy('booking_id')
+                        ->orderBy('start_time');
                 },
             ])
             ->where('store_id', $storeId)
@@ -119,9 +126,11 @@ class BookingController extends Controller
                     'start_time' => $schedule->start_time,
                     'end_time' => $schedule->end_time,
                 ])->values()->all(),
-                'bookings' => $staff->bookings
-                    ->map(static function ($booking) {
-                        if (! $booking->booking_date || ! $booking->booking_time) {
+                'bookings' => $staff->bookingItems
+                    ->map(static function (BookingItem $bookingItem) {
+                        $booking = $bookingItem->booking;
+
+                        if (! $booking?->booking_date) {
                             return null;
                         }
 
@@ -129,11 +138,24 @@ class BookingController extends Controller
                             ? $booking->booking_date->format('Y-m-d')
                             : Carbon::parse($booking->booking_date)->format('Y-m-d');
 
-                        $timeString = $booking->booking_time instanceof Carbon
-                            ? $booking->booking_time->format('H:i')
-                            : Carbon::parse($booking->booking_time)->format('H:i');
+                        $startTime = $bookingItem->start_time;
+                        $timeString = null;
 
-                        $duration = max(1, (int) $booking->items->sum('duration'));
+                        if ($startTime) {
+                            try {
+                                $timeString = Carbon::createFromFormat('H:i:s', $startTime)->format('H:i');
+                            } catch (\InvalidArgumentException $exception) {
+                                $timeString = Carbon::parse($startTime)->format('H:i');
+                            }
+                        }
+
+                        if (! $timeString) {
+                            $timeString = $booking->booking_time instanceof Carbon
+                                ? $booking->booking_time->format('H:i')
+                                : Carbon::parse($booking->booking_time)->format('H:i');
+                        }
+
+                        $duration = max(1, (int) $bookingItem->duration);
 
                         return [
                             'date' => $dateString,
@@ -142,6 +164,7 @@ class BookingController extends Controller
                         ];
                     })
                     ->filter()
+                    ->sortBy(static fn($slot) => $slot['date'] . ' ' . $slot['start_time'])
                     ->values()
                     ->all(),
             ];
@@ -341,7 +364,7 @@ class BookingController extends Controller
             $currentStartDateTime = $endDateTimeForService;
         }
 
-        $createdBookings = DB::transaction(function () use ($servicePlans, $store, $user, $validated): array {
+        $createdBooking = DB::transaction(function () use ($servicePlans, $store, $user, $validated, $initialStartDateTime) {
             if ($user) {
                 $user->forceFill([
                     'name' => $validated['customer_name'] ?: $user->name,
@@ -349,32 +372,37 @@ class BookingController extends Controller
                 ])->save();
             }
 
-            $created = [];
-
             foreach ($servicePlans as $plan) {
                 /** @var \App\Models\Service $service */
                 $service = $plan['service'];
                 $staffId = $plan['staff_id'];
-                $serviceDuration = $plan['duration'];
                 $startDateTime = $plan['start'];
                 $endDateTime = $plan['end'];
 
                 $bookingDateForService = $startDateTime->toDateString();
 
-                $existingBookings = Booking::query()
+                $existingItems = BookingItem::query()
                     ->where('staff_id', $staffId)
-                    ->whereDate('booking_date', $bookingDateForService)
-                    ->where('status', '!=', 'cancelled')
-                    ->with(['items:id,booking_id,duration'])
+                    ->whereHas('booking', static function ($query) use ($bookingDateForService): void {
+                        $query->whereDate('booking_date', $bookingDateForService)
+                            ->where('status', '!=', 'cancelled');
+                    })
+                    ->with(['booking:id,booking_date'])
                     ->lockForUpdate()
                     ->get();
 
-                foreach ($existingBookings as $existingBooking) {
-                    $existingStart = $existingBooking->booking_date instanceof Carbon
-                        ? $existingBooking->booking_date->copy()->setTimeFromTimeString($existingBooking->booking_time)
-                        : Carbon::parse($existingBooking->booking_date . ' ' . $existingBooking->booking_time);
+                foreach ($existingItems as $existingItem) {
+                    $booking = $existingItem->booking;
 
-                    $existingDuration = max(1, (int) $existingBooking->items->sum('duration'));
+                    if (! $booking?->booking_date) {
+                        continue;
+                    }
+
+                    $existingStart = $booking->booking_date instanceof Carbon
+                        ? $booking->booking_date->copy()->setTimeFromTimeString($existingItem->start_time)
+                        : Carbon::parse($booking->booking_date . ' ' . $existingItem->start_time);
+
+                    $existingDuration = max(1, (int) $existingItem->duration);
                     $existingEnd = (clone $existingStart)->addMinutes($existingDuration);
 
                     if ($startDateTime->lt($existingEnd) && $endDateTime->gt($existingStart)) {
@@ -383,28 +411,35 @@ class BookingController extends Controller
                         ]);
                     }
                 }
+            }
 
-                $booking = Booking::query()->create([
-                    'user_id' => $user?->id,
-                    'store_id' => $store->id,
-                    'service_id' => $service->id,
-                    'booking_date' => $bookingDateForService,
-                    'booking_time' => $startDateTime->format('H:i:s'),
-                    'staff_id' => (int) $staffId,
-                    'status' => 'pending',
-                ]);
+            $primaryService = $servicePlans[0]['service'] ?? null;
+
+            $booking = Booking::query()->create([
+                'user_id' => $user?->id,
+                'store_id' => $store->id,
+                'service_id' => $primaryService?->id,
+                'booking_date' => $initialStartDateTime->toDateString(),
+                'booking_time' => $initialStartDateTime->format('H:i:s'),
+                'staff_id' => null,
+                'status' => 'pending',
+            ]);
+
+            foreach ($servicePlans as $plan) {
+                /** @var \App\Models\Service $service */
+                $service = $plan['service'];
 
                 BookingItem::query()->create([
                     'booking_id' => $booking->id,
                     'service_id' => $service->id,
-                    'duration' => $serviceDuration,
+                    'staff_id' => (int) $plan['staff_id'],
+                    'start_time' => $plan['start']->format('H:i:s'),
+                    'duration' => $plan['duration'],
                     'price' => $service->price,
                 ]);
-
-                $created[] = $booking;
             }
 
-            return $created;
+            return $booking->fresh(['items']);
         });
 
         $serviceSummary = $serviceIds->map(function ($serviceId) use ($services, $assignments, $staffMembers) {
@@ -431,6 +466,8 @@ class BookingController extends Controller
                 'customer_name' => $customerName,
                 'booking_date' => Carbon::parse($bookingDate)->translatedFormat('l, d F Y'),
                 'booking_time' => Carbon::createFromFormat('H:i', $bookingTime)->format('H:i'),
+                'booking_id' => $createdBooking->id,
+                'booking_ids' => [$createdBooking->id],
                 'store' => [
                     'name' => $store->name,
                     'address' => collect([
@@ -454,7 +491,8 @@ class BookingController extends Controller
 
         return response()->json([
             'message' => 'Booking berhasil disimpan dan sedang menunggu konfirmasi.',
-            'booking_ids' => collect($createdBookings)->map(fn(Booking $booking) => $booking->id)->values(),
+            'booking_id' => $createdBooking->id,
+            'booking_ids' => collect([$createdBooking->id])->values(),
         ], 201);
     }
 }

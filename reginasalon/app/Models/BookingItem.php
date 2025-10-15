@@ -14,6 +14,8 @@ class BookingItem extends Model
     protected $fillable = [
         'booking_id',
         'service_id',
+        'staff_id',
+        'start_time',
         'duration',
         'price',
     ];
@@ -35,5 +37,10 @@ class BookingItem extends Model
     public function service()
     {
         return $this->belongsTo(Service::class);
+    }
+
+    public function staff()
+    {
+        return $this->belongsTo(Staff::class);
     }
 }
