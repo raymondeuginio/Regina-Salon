@@ -47,6 +47,11 @@ class Staff extends Model
         return $this->hasMany(StaffException::class);
     }
 
+    public function bookingItems()
+    {
+        return $this->hasMany(BookingItem::class);
+    }
+
     public function bookings()
     {
         return $this->hasMany(Booking::class);
