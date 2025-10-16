@@ -1,5 +1,7 @@
 @extends('errors::minimal')
 
-@section('title', __('Page Expired'))
+@section('title', 'Page Expired')
+@section('badge', 'Page Expired')
 @section('code', '419')
-@section('message', __('Page Expired'))
+@section('heading', 'Sesi telah berakhir.')
+@section('message', 'Halaman ini telah kedaluwarsa karena tidak ada aktivitas dalam waktu lama. Silakan muat ulang halaman dan coba lagi.')
