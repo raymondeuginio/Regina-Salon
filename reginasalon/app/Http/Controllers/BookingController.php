@@ -413,12 +413,10 @@ class BookingController extends Controller
                 }
             }
 
-            $primaryService = $servicePlans[0]['service'] ?? null;
 
             $booking = Booking::query()->create([
                 'user_id' => $user?->id,
                 'store_id' => $store->id,
-                'service_id' => $primaryService?->id,
                 'booking_date' => $initialStartDateTime->toDateString(),
                 'booking_time' => $initialStartDateTime->format('H:i:s'),
                 'staff_id' => null,
