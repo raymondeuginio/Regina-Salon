@@ -131,10 +131,11 @@
                 </section>
             </form>
 
-            <aside class="space-y-6 rounded-3xl border border-rose-100 bg-white p-8 shadow-sm" data-booking-summary>
+            <aside class="space-y-6 rounded-3xl border border-rose-100 bg-white p-8 shadow-sm" data-booking-summary data-success-redirect="{{ route('home') }}" data-redirect-delay="3500">
                 <div class="hidden rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700" data-confirmation-message>
                     <p class="font-semibold">Booking berhasil dibuat!</p>
                     <p class="mt-1 text-xs">Kami telah mengirimkan ringkasan ke email Anda. Nantikan pengingat jadwal dan detail booking melalui email.</p>
+                    <p class="mt-2 text-xs text-emerald-600">Anda akan diarahkan ke halaman utama dalam beberapa detik.</p>
                 </div>
 
                 <div class="hidden rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-600" data-error-message></div>
@@ -332,6 +333,7 @@
             summaryDatetime: document.querySelector('[data-summary-datetime]'),
             summaryPayment: document.querySelector('[data-summary-payment]'),
             summaryTotal: document.querySelector('[data-summary-total]'),
+            summaryContainer: document.querySelector('[data-booking-summary]'),
             paymentInputs: document.querySelectorAll('input[name="payment_method"]'),
             confirmButton: document.querySelector('[data-confirm-button]'),
             confirmationMessage: document.querySelector('[data-confirmation-message]'),
@@ -339,6 +341,11 @@
             phoneInput: document.querySelector('input[name="customer_phone"]'),
             form: document.getElementById('booking-form'),
         };
+
+        const successRedirectUrl = elements.summaryContainer?.dataset.successRedirect || null;
+        const parsedRedirectDelay = Number(elements.summaryContainer?.dataset.redirectDelay || 3000);
+        const successRedirectDelay = Number.isFinite(parsedRedirectDelay) && parsedRedirectDelay >= 0 ? parsedRedirectDelay : 3000;
+        let successRedirectTimeout = null;
 
         state.customerPhone = (elements.phoneInput?.value || '').trim();
         state.paymentMethod = Array.from(elements.paymentInputs).find((input) => input.checked)?.value || null;
@@ -638,13 +645,12 @@
                     });
                 });
 
-                if (!conflicts) {
-                    slots.push({
-                        start,
-                        end,
-                        label: `${timeFromMinutes(start)} - ${timeFromMinutes(end)}`,
-                    });
-                }
+                slots.push({
+                    start,
+                    end,
+                    available: !conflicts,
+                    label: `${timeFromMinutes(start)} - ${timeFromMinutes(end)}`,
+                });
             }
 
             return slots;
@@ -657,15 +663,29 @@
             }
 
             elements.timeOptions.innerHTML = slots.map((slot) => {
-                const isActive = Number(state.selectedTime) === Number(slot.start);
+                 const isActive = slot.available && Number(state.selectedTime) === Number(slot.start);
+                const disabled = !slot.available;
+                const classes = ['rounded-2xl', 'border', 'px-4', 'py-3', 'text-sm', 'transition'];
+
+                if (isActive) {
+                    classes.push('border-rose-500', 'bg-rose-500', 'text-white', 'hover:border-rose-500');
+                } else if (disabled) {
+                    classes.push('border-rose-100', 'bg-rose-50', 'text-rose-300', 'cursor-not-allowed');
+                } else {
+                    classes.push('border-rose-100', 'bg-white', 'text-gray-700', 'hover:border-rose-400');
+                }
                 return `
-                        <button type="button" data-pick-time="${slot.start}" class="rounded-2xl border px-4 py-3 text-sm transition ${isActive ? 'border-rose-500 bg-rose-500 text-white hover:border-rose-500' : 'border-rose-100 bg-white text-gray-700 hover:border-rose-400'}">
+                        <button type="button" data-pick-time="${slot.start}" class="${classes.join(' ')}" ${disabled ? 'disabled aria-disabled="true"' : ''}>
                             ${slot.label}
                         </button>
                     `;
             }).join('');
 
             elements.timeOptions.querySelectorAll('[data-pick-time]').forEach((button) => {
+                if (button.disabled) {
+                    return;
+                }
+
                 button.addEventListener('click', () => {
                     state.selectedTime = Number(button.dataset.pickTime);
                     renderTimeSlots(slots);
@@ -697,7 +717,7 @@
 
             const slots = computeSlotsForDate(date);
 
-            if (!slots.some((slot) => Number(slot.start) === Number(state.selectedTime))) {
+            if (!slots.some((slot) => slot.available && Number(slot.start) === Number(state.selectedTime))) {
                 state.selectedTime = null;
             }
 
@@ -733,7 +753,7 @@
                 const inCurrentMonth = currentParts.month === monthParts.month && currentParts.year === monthParts.year;
                 const isPast = currentDate < todayStart;
                 const slots = inCurrentMonth && !isPast ? computeSlotsForDate(currentDate) : [];
-                const available = slots.length > 0;
+                const available = slots.some((slot) => slot.available);
 
                 return {
                     date: currentDate,
@@ -989,6 +1009,15 @@
 
                 if (elements.confirmationMessage) {
                     elements.confirmationMessage.classList.remove('hidden');
+                }
+                if (successRedirectUrl) {
+                    if (successRedirectTimeout) {
+                        clearTimeout(successRedirectTimeout);
+                    }
+
+                    successRedirectTimeout = setTimeout(() => {
+                        window.location.href = successRedirectUrl;
+                    }, successRedirectDelay);
                 }
             } catch (error) {
                 if (elements.errorMessage) {
