@@ -9,8 +9,6 @@ use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
-use Filament\Tables\Columns\TagsColumn;
-use League\Flysystem\Visibility;
 
 class StaffTable
 {
@@ -18,14 +16,17 @@ class StaffTable
     {
         return $table
             ->columns([
-                TextColumn::make('id'),
+                TextColumn::make('id')
+                    ->sortable(),
                 TextColumn::make('store.name')
                     ->limit(20),
                 ImageColumn::make('image')
                     ->circular()
                     ->disk('public')
                     ->visibility('public'),
-                TextColumn::make('name'),
+                TextColumn::make('name')
+                    ->searchable()
+                    ->sortable(),
                 TextColumn::make('email'),
                 TextColumn::make('phone'),
                 TextColumn::make('services_list')
@@ -36,10 +37,6 @@ class StaffTable
                     )
                     ->limit(25)
                     ->tooltip(fn($record) => $record->services->pluck('name')->join(', '))
-
-
-
-
             ])
             ->filters([
                 //
@@ -50,7 +47,8 @@ class StaffTable
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
-                    DeleteBulkAction::make(),
+                    DeleteBulkAction::make()
+                        ->requiresConfirmation(),
                 ]),
             ]);
     }

@@ -8,7 +8,7 @@ use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
-
+use Filament\Tables\Columns\SelectColumn;
 
 class BookingsTable
 {
@@ -19,10 +19,20 @@ class BookingsTable
                 TextColumn::make('id'),
                 TextColumn::make('user.name'),
                 TextColumn::make('store.name'),
-                TextColumn::make('booking_date'),
-                TextColumn::make('booking_time'),
+                TextColumn::make('booking_date')
+                    ->date('D, M j, Y'),
+                TextColumn::make('booking_time')
+                    ->dateTime('H:i')
+                    ->suffix(' WIB'),
                 TextColumn::make('staff.name'),
-                TextColumn::make('status'),
+                SelectColumn::make('status')
+                    ->options([
+                        'pending' => 'Pending',
+                        'confirmed' => 'Confirmed',
+                        'completed' => 'Completed',
+                        'cancelled' => 'Cancelled',
+                    ])
+                    ->selectablePlaceholder(false),
             ])
             ->filters([
                 //

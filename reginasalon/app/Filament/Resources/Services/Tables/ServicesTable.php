@@ -17,12 +17,27 @@ class ServicesTable
         return $table
             ->columns([
                 //
-                TextColumn::make('id')->sortable(),
-                TextColumn::make('category.name'),
-                TextColumn::make('name')->searchable(),
-                TextColumn::make('description')->limit('25'),
-                TextColumn::make('duration')->searchable()->sortable()->suffix(' min'),
-                TextColumn::make('price')->searchable()->sortable()->money('IDR')
+                TextColumn::make('id')
+                    ->sortable(),
+                TextColumn::make('category.name')
+                    ->searchable()
+                    ->sortable(),
+                TextColumn::make('name')
+                    ->searchable()
+                    ->sortable()
+                    ->limit(30)
+                    ->tooltip(fn($record) => $record->name),
+                TextColumn::make('description')
+                    ->limit(25)
+                    ->tooltip(fn($record) => $record->description),
+                TextColumn::make('duration')
+                    ->searchable()
+                    ->sortable()
+                    ->suffix(' min'),
+                TextColumn::make('price')
+                    ->searchable()
+                    ->sortable()
+                    ->money('IDR')
 
             ])
             ->filters([

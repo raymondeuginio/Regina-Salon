@@ -21,7 +21,7 @@ class ViewStaff extends ViewRecord
     // Override default function for heading title
     public function getTitle(): string|Htmlable
     {
-        $title = 'Stylist ' . ($this->record?->name);
+        $title = 'Stylist Detail';
         return "{$title}";
     }
 }

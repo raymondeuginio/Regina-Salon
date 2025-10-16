@@ -13,7 +13,8 @@ class ListServiceCategories extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            CreateAction::make()->label('Add service category'),
+            CreateAction::make()
+                ->label('Add service category'),
         ];
     }
 }

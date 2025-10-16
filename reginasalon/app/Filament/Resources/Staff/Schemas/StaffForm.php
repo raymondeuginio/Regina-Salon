@@ -20,6 +20,7 @@ class StaffForm
         return $schema
             ->columns(2)
             ->components([
+                // KIRI
                 Section::make()
                     ->schema([
                         Select::make('store_id')
@@ -40,6 +41,8 @@ class StaffForm
                             ->helperText('Format: 0878xxxxxxxx'),
 
                     ]),
+
+                // KANAN
                 Section::make()
                     ->schema([
                         FileUpload::make('image')
@@ -56,7 +59,7 @@ class StaffForm
                             ->hint('Upload your photo here')
                     ]),
 
-
+                // SERVICE
                 CheckboxList::make('services')
                     ->label('Services')
                     ->required()

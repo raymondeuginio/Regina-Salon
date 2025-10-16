@@ -19,6 +19,7 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Filament\Enums\DatabaseNotificationsPosition;
+use function Laravel\Prompts\search;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -33,8 +34,9 @@ class AdminPanelProvider extends PanelProvider
             ->brandLogoHeight('5rem')
             ->favicon(asset('images/regina-favicon-resized.ico'))
             ->login()
+            ->globalSearch(false)
             ->colors([
-                'primary' => 'amber',
+                'primary' => 'amber'
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
@@ -44,7 +46,7 @@ class AdminPanelProvider extends PanelProvider
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
                 AccountWidget::class,
-                // FilamentInfoWidget::class,
+
             ])
             ->middleware([
                 EncryptCookies::class,
@@ -60,6 +62,10 @@ class AdminPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
             ])
-            ->databaseNotifications();
+            ->databaseNotifications()
+            ->registerErrorNotification(
+                title: 'An error occurred',
+                body: 'Please try again later.',
+            );
     }
 }
