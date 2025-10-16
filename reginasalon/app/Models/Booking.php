@@ -21,7 +21,7 @@ class Booking extends Model
 
     protected $casts = [
         'booking_date' => 'date',
-        'booking_time' => 'datetime:H:i'
+        'booking_time' => 'datetime:H:i:s'
     ];
 
     /**
@@ -38,6 +38,7 @@ class Booking extends Model
     {
         return $this->belongsTo(Store::class);
     }
+
 
     // Booking bisa punya 1 staff (nullable)
     public function staff()

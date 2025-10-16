@@ -16,6 +16,24 @@
             <x-input-error :messages="$errors->get('email')" class="mt-2" />
         </div>
 
+        <!-- Phone Number -->
+<div class="mt-4">
+    <x-input-label for="phone" :value="__('Nomor HP')" />
+    <x-text-input 
+        id="phone" 
+        class="block mt-1 w-full" 
+        type="tel" 
+        name="phone" 
+        placeholder="08xxxxxxxxxx" 
+        pattern="0[0-9]{9,13}" 
+        title="Nomor HP harus diawali dengan 0 dan terdiri dari 10–14 digit angka"
+        :value="old('phone')" 
+        required 
+    />
+    <x-input-error :messages="$errors->get('phone')" class="mt-2" />
+</div>
+
+
         <!-- Password -->
         <div class="mt-4">
             <x-input-label for="password" :value="__('Password')" />
