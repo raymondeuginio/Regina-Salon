@@ -3,11 +3,9 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
 use App\Services\EmailOtpService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Validation\Rules;
 use Illuminate\View\View;
@@ -33,21 +31,31 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
-        ]);
+        $validated = $request->validate(
+            [
+                'name' => ['required', 'string', 'max:255'],
+                'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:users,email', 'ends_with:gmail.com,yahoo.com'],
+                'phone' => ['required', 'string', 'max:20', 'unique:users,phone'],
+                'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            ],
+            [
+                'email.ends_with' => __('Masukkan email yang valid.'),
+            ]
+        );
 
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
+        Session::forget('pending_verification_user_id');
+        Session::forget('pending_registration');
 
-        $this->emailOtpService->generate($user);
+        $pendingUser = [
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'phone' => $validated['phone'],
+            'password' => $validated['password'],
+        ];
 
-        Session::put('pending_verification_user_id', $user->id);
+        Session::put('pending_registration.user', $pendingUser);
+
+        $this->emailOtpService->generateForPendingRegistration($pendingUser);
 
         return redirect()->route('verification.otp.show')->with('status', 'otp-sent');
     }

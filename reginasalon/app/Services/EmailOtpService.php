@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Notifications\EmailOtpNotification;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Session;
 
 class EmailOtpService
 {
@@ -40,6 +41,19 @@ class EmailOtpService
     public function resend(User $user, string $type = 'registration'): EmailOtp
     {
         return $this->generate($user, $type);
+    }
+
+    public function generateForPendingRegistration(array $pendingUser): void
+    {
+        $plainOtp = $this->generateOtpCode();
+
+        Session::put('pending_registration.otp', [
+            'code' => Hash::make($plainOtp),
+            'expires_at' => now()->addMinutes($this->expiryMinutes),
+        ]);
+
+        Notification::route('mail', $pendingUser['email'])
+            ->notify(new EmailOtpNotification($plainOtp, $this->expiryMinutes, $pendingUser['name'] ?? null));
     }
 
     private function generateOtpCode(): string
