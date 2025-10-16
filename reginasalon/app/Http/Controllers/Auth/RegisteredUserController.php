@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Services\EmailOtpService;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
@@ -12,9 +13,7 @@ use Illuminate\View\View;
 
 class RegisteredUserController extends Controller
 {
-    public function __construct(private readonly EmailOtpService $emailOtpService)
-    {
-    }
+    public function __construct(private readonly EmailOtpService $emailOtpService) {}
 
     /**
      * Display the registration view.
@@ -34,12 +33,20 @@ class RegisteredUserController extends Controller
         $validated = $request->validate(
             [
                 'name' => ['required', 'string', 'max:255'],
-                'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:users,email', 'ends_with:gmail.com,yahoo.com'],
+                'email' => [
+                    'required',
+                    'string',
+                    'lowercase',
+                    'email:filter',
+                    'max:255',
+                    'unique:users,email',
+                    'regex:/^[a-z0-9._%+-]+@(gmail\.com|yahoo\.com)$/i',
+                ],
                 'phone' => ['required', 'string', 'max:20', 'unique:users,phone'],
                 'password' => ['required', 'confirmed', Rules\Password::defaults()],
             ],
             [
-                'email.ends_with' => __('Masukkan email yang valid.'),
+                'email.regex' => __('Masukkan email Gmail atau Yahoo yang valid.'),
             ]
         );
 
@@ -50,7 +57,7 @@ class RegisteredUserController extends Controller
             'name' => $validated['name'],
             'email' => $validated['email'],
             'phone' => $validated['phone'],
-            'password' => $validated['password'],
+            'password' => Hash::make($validated['password']),
         ];
 
         Session::put('pending_registration.user', $pendingUser);
