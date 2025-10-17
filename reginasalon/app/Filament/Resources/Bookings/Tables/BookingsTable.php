@@ -18,6 +18,8 @@ use Filament\Tables\Filters\Filter;
 use Filament\Forms\Components\DatePicker;
 use Illuminate\Database\Eloquent\Builder;
 use App\Filament\Exports\BookingExporter;
+use Filament\Actions\Exports\Actions\ExportBulkAction;
+use Filament\Actions\Exports\Enums\ExportFormat;
 
 class BookingsTable
 {
@@ -173,9 +175,10 @@ class BookingsTable
             ])
             ->headerActions([
                 ExportAction::make()
-                    ->label('Export File')
+                    ->label('Export File All Rows')
                     ->exporter(BookingExporter::class)
                     ->icon('heroicon-o-arrow-down-tray')
+                    ->formats([ExportFormat::Csv, ExportFormat::Xlsx])
             ])
             ->emptyStateHeading('No Bookings')
             ->emptyStateDescription('There are no appointment.')

@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Filament\Resources\Bookings\BookingResource;
+use Filament\Actions\Action;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Notifications\Notifiable;
+use Filament\Notifications\Notification;
 
 
 class Booking extends Model
@@ -85,5 +88,27 @@ class Booking extends Model
         return Attribute::make(
             get: fn() => $this->services->sum('pivot.price'),
         );
+    }
+
+
+    protected static function booted(): void
+    {
+        static::created(function ($booking) {
+            $recipients = User::whereIn('role', ['admin', 'owner'])->get();
+
+            foreach ($recipients as $user) {
+                Notification::make()
+                    ->title('New Booking Received')
+                    ->body("From {$booking->user->name}. Booked on {$booking->booking_date} {$booking->booking_time}.")
+                    ->icon('heroicon-o-calendar-days')
+                    ->color('success')
+                    ->actions([
+                        Action::make('View')
+                            ->url(BookingResource::getUrl('view', ['record' => $booking]))
+                            ->button(),
+                    ])
+                    ->sendToDatabase($user);
+            }
+        });
     }
 }

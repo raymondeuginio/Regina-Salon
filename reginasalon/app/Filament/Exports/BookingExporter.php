@@ -68,6 +68,11 @@ class BookingExporter extends Exporter
         ];
     }
 
+    public function getFileName(Export $export): string
+    {
+        return 'bookings '  .  now()->format('d_m_Y_H:i:s');
+    }
+
     public static function getCompletedNotificationBody(Export $export): string
     {
         $body = 'Your booking export has completed and ' . Number::format($export->successful_rows) . ' ' . str('row')->plural($export->successful_rows) . ' exported.';

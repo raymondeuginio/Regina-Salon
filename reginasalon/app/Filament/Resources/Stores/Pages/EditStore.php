@@ -16,4 +16,9 @@ class EditStore extends EditRecord
             DeleteAction::make(),
         ];
     }
+    // Redirect ke index store
+    protected function getRedirectUrl(): ?string
+    {
+        return $this->getResource()::getUrl('index');
+    }
 }

@@ -6,6 +6,7 @@ use App\Filament\Resources\Staff\StaffResource;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ViewAction;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Contracts\Support\Htmlable;
 
 class EditStaff extends EditRecord
 {
@@ -22,5 +23,11 @@ class EditStaff extends EditRecord
     protected function getRedirectUrl(): ?string
     {
         return $this->getResource()::getUrl('index');
+    }
+
+    public function getTitle(): string|Htmlable
+    {
+        $title = 'Edit Stylist';
+        return "{$title}";
     }
 }
