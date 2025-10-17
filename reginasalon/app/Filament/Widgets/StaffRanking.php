@@ -14,7 +14,7 @@ class StaffRanking extends TableWidget
 {
     protected static ?string $heading = 'Staff Ranking';
 
-    protected static ?int $sort = 4;
+    protected static ?int $sort = 5;
     public function table(Table $table): Table
     {
         return $table

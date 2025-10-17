@@ -4,6 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class Booking extends Model
 {
@@ -56,5 +59,28 @@ class Booking extends Model
     public function payment()
     {
         return $this->hasOne(Payment::class);
+    }
+
+    // Relasi ke services lewar booking_items
+    public function services(): BelongsToMany
+    {
+        return $this->belongsToMany(Service::class, 'booking_items')
+            ->withPivot('duration', 'price') // Sesuai kolom di booking_items
+            ->withTimestamps();
+    }
+
+    // hasMany jika ingin akses langsung ke booking_items
+    public function bookingItems(): HasMany
+    {
+        return $this->hasMany(BookingItem::class);
+    }
+
+
+    //
+    protected function totalPrice(): Attribute
+    {
+        return Attribute::make(
+            get: fn() => $this->services->sum('pivot.price'),
+        );
     }
 }

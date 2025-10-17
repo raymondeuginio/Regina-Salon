@@ -2,50 +2,55 @@
 
 namespace App\Filament\Widgets;
 
+use Filament\Pages\Dashboard\Concerns\HasFiltersForm;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use Filament\Widgets\Concerns\InteractsWithPageFilters;
 use App\Models\User;
 use App\Models\Service;
 use App\Models\Booking;
+use App\Models\BookingItem;
 use App\Models\Staff;
 
 class StatsOverview extends StatsOverviewWidget
 {
+    use InteractsWithPageFilters;
+
     // Posisi di dashboard paling pertama
     protected static ?int $sort = 1;
-
     protected ?string $pollingInterval = '15s';
 
     protected static bool $isLazy = true;
     protected function getStats(): array
     {
-        $totalUsers = User::count();
-        $totalBookings = Booking::count();
+
+        $startDate = $this->filters['startDate'] ?? now()->startOfMonth();
+        $endDate = $this->filters['endDate'] ?? now()->endOfDay();
+
         $totalServices = Service::count();
         $totalStaffs = Staff::count();
+        $totalBookings = Booking::whereBetween('booking_date', [$startDate, $endDate])
+            ->count();
+        $totalRevenue = BookingItem::whereHas('booking', function ($query) use ($startDate, $endDate) {
+            $query->where('status', 'completed')
+                ->whereBetween('booking_date', [$startDate, $endDate]);
+        })->sum('price');
+
+
 
         return [
-            // Stat::make('Users', $totalUsers)
-            //     ->description('Total registered users')
-            //     ->descriptionIcon('heroicon-o-users'),
-            // // ->color('success'),
-            Stat::make('Appointments',  $totalBookings)
-                ->description('Total bookings')
-                ->descriptionIcon('heroicon-o-calendar')
-                ->color('success')
-                ->chart([65, 59, 84, 84, 51, 55, 40]),
-            Stat::make('Revenue', 'IDR ' . number_format(20000, 0, ',', '.'))
+            Stat::make('Bookings',  $totalBookings)
+                ->description('Total appointments')
+                ->descriptionIcon('heroicon-o-calendar'),
+            Stat::make('Revenue', 'IDR ' . number_format($totalRevenue, 0, ',', '.'))
                 ->description('Total revenue')
                 ->descriptionIcon('heroicon-o-currency-dollar'),
-            // ->color('warning'),
             Stat::make('Services', $totalServices)
                 ->description('Available services')
                 ->descriptionIcon('heroicon-o-scissors'),
-            // ->color('info'),
             Stat::make('Staffs', $totalStaffs)
                 ->description('Total staff members')
                 ->descriptionIcon('heroicon-o-user-group'),
-            // ->color('success'),
         ];
     }
 }

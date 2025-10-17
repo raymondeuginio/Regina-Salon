@@ -24,6 +24,9 @@ class StoresTable
                 TextColumn::make('postal_code'),
                 TextColumn::make('phone'),
             ])
+            ->emptyStateHeading('No Stores')
+            ->emptyStateDescription('There are no store yet.')
+            ->emptyStateIcon('heroicon-o-map-pin')
             ->filters([
                 //
             ])

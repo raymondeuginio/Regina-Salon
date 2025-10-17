@@ -38,6 +38,9 @@ class StaffTable
                     ->limit(25)
                     ->tooltip(fn($record) => $record->services->pluck('name')->join(', '))
             ])
+            ->emptyStateHeading('No Staffs')
+            ->emptyStateDescription('There are no staff.')
+            ->emptyStateIcon('heroicon-o-users')
             ->filters([
                 //
             ])

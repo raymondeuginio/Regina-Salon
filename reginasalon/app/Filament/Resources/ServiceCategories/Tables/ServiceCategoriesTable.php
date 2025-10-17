@@ -23,6 +23,9 @@ class ServiceCategoriesTable
                     ->searchable()
                     ->sortable(),
             ])
+            ->emptyStateHeading('No Service Categories')
+            ->emptyStateDescription('There are no service categoriy.')
+            ->emptyStateIcon('heroicon-o-folder')
             ->filters([
                 //
             ])

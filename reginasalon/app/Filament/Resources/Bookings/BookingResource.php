@@ -24,6 +24,11 @@ class BookingResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'id';
 
+    public static function canCreate(): bool
+    {
+        return false;
+    }
+
     public static function form(Schema $schema): Schema
     {
         return BookingForm::configure($schema);

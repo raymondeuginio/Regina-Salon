@@ -2,7 +2,9 @@
 
 namespace App\Filament\Widgets;
 
+use Carbon\Carbon;
 use App\Models\Booking;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Forms\Components\DatePicker;
 use Filament\Tables\Table;
@@ -11,6 +13,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
+use Filament\Forms\Components\Select;
 
 class UpcomingBooking extends TableWidget
 {
@@ -24,14 +27,39 @@ class UpcomingBooking extends TableWidget
 
         return $table
             ->query(fn(): Builder => Booking::query()
+                ->with(['user', 'services'])
                 ->where('booking_date', '>=', now()->toDateString())
                 ->orderBy('booking_date', 'asc'))
             ->columns([
-                TextColumn::make('customer_name')
+                TextColumn::make('user.name')
                     ->label('Customer Name')
                     ->searchable(),
-                TextColumn::make('service.name')
-                    ->label('Service'),
+                TextColumn::make('services_list')
+                    ->label('Services')
+                    ->wrap()
+                    ->limit(25)
+                    ->getStateUsing(function ($record) {
+                        if (!$record->services || $record->services->isEmpty()) {
+                            return 'No services';
+                        }
+
+                        return $record->services
+                            ->pluck('name')
+                            ->join(', ');
+                    })
+                    ->tooltip(function ($record) {
+                        if (!$record->services || $record->services->isEmpty()) {
+                            return 'No services booked';
+                        }
+
+                        return $record->services->map(function ($service) {
+                            return $service->name . ', ';
+                        })->join("\n");
+                    }),
+                TextColumn::make('total_price')
+                    ->label('Total Price')
+                    ->money('IDR', locale: 'id')
+                    ->default(0),
                 TextColumn::make('booking_time')
                     ->label('Time')
                     ->dateTime('H:i')
@@ -49,14 +77,14 @@ class UpcomingBooking extends TableWidget
                         default => 'secondary',
                     }),
             ])
-            ->emptyStateHeading('No Bookings Today')
-            ->emptyStateDescription('There are no bookings scheduled for today.')
+            ->emptyStateHeading('No Bookings')
+            ->emptyStateDescription('There are no bookings scheduled.')
             ->emptyStateIcon('heroicon-o-calendar')
             ->filters([
                 // Filter untuk status booking
                 Filter::make('date_filter')
                     ->form([
-                        \Filament\Forms\Components\Select::make('type')
+                        Select::make('type')
                             ->label('Date Filter')
                             ->options([
                                 'today' => 'Today',
@@ -96,7 +124,7 @@ class UpcomingBooking extends TableWidget
                         $type = $data['type'] ?? null;
 
                         if ($type === 'custom' && isset($data['date'])) {
-                            return 'Date: ' . \Carbon\Carbon::parse($data['date'])->format('M d, Y');
+                            return 'Date: ' . Carbon::parse($data['date'])->format('d M, Y');
                         }
 
                         return match ($type) {
@@ -109,8 +137,18 @@ class UpcomingBooking extends TableWidget
                     }),
 
             ])
+            ->filtersTriggerAction(
+                fn(Action $action) => $action
+                    ->button()
+                    ->label('Filter'),
+            )
             ->headerActions([
                 //
+                Action::make('refresh')
+                    ->label('Refresh')
+                    ->icon('heroicon-o-arrow-path')
+                    ->action(fn() => $this->resetTable())
+                    ->color('gray'),
             ])
             ->recordActions([
                 //

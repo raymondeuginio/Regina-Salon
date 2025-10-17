@@ -6,7 +6,7 @@ use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
-use Filament\Pages\Dashboard;
+use App\Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
@@ -21,6 +21,7 @@ use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Filament\Enums\DatabaseNotificationsPosition;
 use function Laravel\Prompts\search;
 
+
 class AdminPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
@@ -28,13 +29,16 @@ class AdminPanelProvider extends PanelProvider
         return $panel
             ->default()
             ->id('admin')
+            ->sidebarCollapsibleOnDesktop(true)
+            ->login()
+            ->profile()
             ->path('admin')
             // ->brandName('Regina Salon')
             ->brandLogo(asset('images/logo-regina-1x1.png'))
             ->brandLogoHeight('5rem')
             ->favicon(asset('images/regina-favicon-resized.ico'))
             ->login()
-            ->globalSearch(false)
+            // ->globalSearch(false)
             ->colors([
                 'primary' => 'amber'
             ])
@@ -61,11 +65,8 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
-            ])
-            ->databaseNotifications()
-            ->registerErrorNotification(
-                title: 'An error occurred',
-                body: 'Please try again later.',
-            );
+            ]);
+        // ->databaseNotifications()
+
     }
 }

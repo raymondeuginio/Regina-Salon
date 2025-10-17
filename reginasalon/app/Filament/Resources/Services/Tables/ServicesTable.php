@@ -40,6 +40,9 @@ class ServicesTable
                     ->money('IDR')
 
             ])
+            ->emptyStateHeading('No Services')
+            ->emptyStateDescription('There are no service.')
+            ->emptyStateIcon('heroicon-o-scissors')
             ->filters([
                 //
             ])
