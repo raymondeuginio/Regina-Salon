@@ -7,6 +7,8 @@ use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Actions\ExportAction;
+use Filament\Tables\Actions\ExportAction\ExportType;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -15,6 +17,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\Filter;
 use Filament\Forms\Components\DatePicker;
 use Illuminate\Database\Eloquent\Builder;
+use App\Filament\Exports\BookingExporter;
 
 class BookingsTable
 {
@@ -168,6 +171,12 @@ class BookingsTable
                         return $indicators;
                     }),
             ])
+            ->headerActions([
+                ExportAction::make()
+                    ->label('Export File')
+                    ->exporter(BookingExporter::class)
+                    ->icon('heroicon-o-arrow-down-tray')
+            ])
             ->emptyStateHeading('No Bookings')
             ->emptyStateDescription('There are no appointment.')
             ->emptyStateIcon('heroicon-o-calendar')
@@ -182,7 +191,7 @@ class BookingsTable
             ->toolbarActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
-                ]),
+                ])
             ]);
     }
 }
