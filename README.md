@@ -13,7 +13,7 @@ Regina Salon & Spa is a Laravel 12 application that digitises the end-to-end boo
 ## Tech Stack
 - **Backend:** PHP 8.2, Laravel 12, Filament admin tooling
 - **Frontend:** Blade templates, Tailwind CSS, Alpine.js, Vite asset bundler
-- **Database:** SQLite by default (configurable to MySQL/PostgreSQL)
+- **Database:** mySQL
 - **Tooling:** PHPUnit for tests, Laravel Sail for containers, Laravel Pint for code style
 
 ## Installation
